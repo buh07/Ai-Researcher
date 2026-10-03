@@ -81,5 +81,5 @@ def test_project_has_no_source_repository_wiring() -> None:
         for path in base.rglob("*")
         if path.is_file()
     ).lower()
-    assert "jasonpeng2019" not in text
-    assert "jason.peng.2019" not in text
+    forbidden = ("jason" + "peng2019", "jason" + ".peng" + ".2019")
+    assert all(value not in text for value in forbidden)

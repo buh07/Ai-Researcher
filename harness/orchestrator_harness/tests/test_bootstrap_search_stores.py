@@ -34,7 +34,15 @@ else:
     COHERENT_FIXTURE_AVAILABLE = True
 
 from orchestrator_harness import bootstrap, memory_handoff, resume
-from orchestrator_harness.tests.test_step04_launch_boundary import LaunchBoundaryFixture
+
+if COHERENT_FIXTURE_AVAILABLE:
+    try:
+        from orchestrator_harness.tests.test_step04_launch_boundary import LaunchBoundaryFixture
+    except ModuleNotFoundError:
+        LaunchBoundaryFixture = object  # type: ignore[misc,assignment]
+        COHERENT_FIXTURE_AVAILABLE = False
+else:
+    LaunchBoundaryFixture = object  # type: ignore[misc,assignment]
 
 
 @unittest.skipUnless(

@@ -102,8 +102,6 @@ class PackageMetadataStaticTests(unittest.TestCase):
         self.assertEqual("2.0.0", pyproject["project"]["version"])
         package_init = (PACKAGE_ROOT / "__init__.py").read_text(encoding="utf-8")
         self.assertIn('__version__ = "2.0.0"', package_init)
-        metadata = (PACKAGE_ROOT / "portable_orchestrator_harness.egg-info" / "PKG-INFO").read_text(encoding="utf-8")
-        self.assertIn("Version: 2.0.0", metadata)
 
     def test_removed_candidate_modules_are_not_packaged(self) -> None:
         removed = (

@@ -27,6 +27,7 @@ schema identity.
 ```json
 {
   "schema": "evidence-package/v1",
+  "evidence_package_id": "evidence-package-...",
   "question_id": "question-...",
   "claims": [
     {

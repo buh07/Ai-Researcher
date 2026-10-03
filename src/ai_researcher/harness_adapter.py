@@ -119,7 +119,7 @@ class HarnessAdapter:
         )
 
         lane_id = _lane_id(experiment_id)
-        task_card = self._task_card(portfolio, selected, authorized)
+        task_card = self._task_card(portfolio, selected, review, authorized)
         validate_task_card(task_card, Path("generated-research-task.json"))
         self.artifact_root.mkdir(parents=True, exist_ok=True)
         task_path = self.artifact_root / f"{lane_id}.json"
@@ -213,15 +213,26 @@ class HarnessAdapter:
         self,
         portfolio: Mapping[str, Any],
         selected: Mapping[str, Any],
+        review: Mapping[str, Any],
         approval: Mapping[str, Any],
     ) -> dict[str, Any]:
         specification = json.dumps(selected, indent=2, sort_keys=True)
+        safety = json.dumps(
+            {
+                "required_controls": review["required_controls"],
+                "prohibited_actions": review["prohibited_actions"],
+                "approval_constraints": approval["constraints"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
         task = (
             "Execute exactly the approved computational experiment below. "
             "Do not broaden the method, dataset, metrics, controls, seeds, or resource bounds. "
             "Return a complete experiment-result/v1 JSON record and artifact references.\n\n"
             f"Approval digest: {approval['record_digest']}\n"
-            f"Experiment specification:\n{specification}"
+            f"Experiment specification:\n{specification}\n\n"
+            f"Mandatory safety controls:\n{safety}"
         )
         metrics = [str(item) for item in selected["metrics"]]
         return contracts.make_task_card(

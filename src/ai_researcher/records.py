@@ -14,7 +14,7 @@ class RecordValidationError(ValueError):
 
 ID_FIELDS = {
     "research-question/v1": "question_id",
-    "evidence-package/v1": "question_id",
+    "evidence-package/v1": "evidence_package_id",
     "hypothesis-portfolio/v1": "question_id",
     "experiment-candidates/v1": "question_id",
     "safety-review/v1": "experiment_id",
@@ -126,6 +126,7 @@ def _validate_question(record: dict[str, Any]) -> None:
 
 
 def _validate_evidence(record: dict[str, Any]) -> None:
+    _required_str(record, "question_id")
     claims = record.get("claims")
     if not isinstance(claims, list):
         raise RecordValidationError("claims must be a list")
@@ -216,6 +217,8 @@ def _validate_result(record: dict[str, Any]) -> None:
         raise RecordValidationError("metrics must be an object")
     if not isinstance(record.get("parameters"), Mapping):
         raise RecordValidationError("parameters must be an object")
+    if record.get("status") not in {"PASS", "FAIL", "ERROR", "CANCELLED"}:
+        raise RecordValidationError("result status is invalid")
     _string_list(record, "artifact_refs")
     _string_list(record, "limitations")
 

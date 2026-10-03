@@ -108,6 +108,24 @@ def test_journal_rejects_conflicting_identity(tmp_path: Path) -> None:
         journal.append(changed, source="test")
 
 
+def test_parallel_evidence_packages_keep_distinct_identities(tmp_path: Path) -> None:
+    journal = ResearchJournal(tmp_path / "journal.sqlite3")
+    base = {
+        "schema": "evidence-package/v1",
+        "question_id": "question-1",
+        "claims": [],
+        "conflicts": [],
+        "coverage_gaps": ["No source found"],
+    }
+    first = journal.append(
+        dict(base, evidence_package_id="package-1"), source="evidence-task-1"
+    )
+    second = journal.append(
+        dict(base, evidence_package_id="package-2"), source="evidence-task-2"
+    )
+    assert first["record_digest"] != second["record_digest"]
+
+
 def test_approval_stages_exact_harness_task_without_launch(tmp_path: Path) -> None:
     portfolio = experiment_candidates()
     adapter = HarnessAdapter(
