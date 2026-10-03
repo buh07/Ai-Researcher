@@ -1,0 +1,15 @@
+.DS_Store
+.env
+.env.*
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+
+# Omnigent and research runtime state must not enter source control.
+.omnigent/
+runtime/
+artifacts/
+results/
+

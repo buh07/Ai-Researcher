@@ -1,0 +1,20 @@
+spec_version: 1
+name: safety-reviewer
+description: Independently reviews a selected experiment for safety, rigor, and approval needs.
+
+instructions: AGENTS.md
+
+executor:
+  type: omnigent
+  config:
+    harness: claude-sdk
+
+interaction:
+  conversational: false
+  modalities:
+    input: [text]
+    output: [text]
+
+async: true
+cancellable: true
+

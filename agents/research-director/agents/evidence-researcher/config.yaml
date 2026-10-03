@@ -1,0 +1,24 @@
+spec_version: 1
+name: evidence-researcher
+description: Finds and cross-checks evidence for one fixed scientific question.
+
+instructions: AGENTS.md
+
+executor:
+  type: omnigent
+  config:
+    harness: claude-sdk
+
+interaction:
+  conversational: false
+  modalities:
+    input: [text]
+    output: [text]
+
+tools:
+  builtins:
+    - web_search
+
+async: true
+cancellable: true
+

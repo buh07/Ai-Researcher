@@ -1,0 +1,20 @@
+spec_version: 1
+name: hypothesis-scientist
+description: Converts a fixed question and cited evidence into falsifiable hypotheses.
+
+instructions: AGENTS.md
+
+executor:
+  type: omnigent
+  config:
+    harness: claude-sdk
+
+interaction:
+  conversational: false
+  modalities:
+    input: [text]
+    output: [text]
+
+async: true
+cancellable: true
+

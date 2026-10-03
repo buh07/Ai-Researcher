@@ -1,0 +1,22 @@
+[project]
+name = "ai-researcher"
+version = "0.1.0"
+description = "Omnigent coordination layer for reproducible agentic scientific discovery"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "omnigent==0.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4,<9",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+

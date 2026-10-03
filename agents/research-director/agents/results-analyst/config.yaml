@@ -1,0 +1,20 @@
+spec_version: 1
+name: results-analyst
+description: Independently interprets a supplied experiment result against its preregistered plan.
+
+instructions: AGENTS.md
+
+executor:
+  type: omnigent
+  config:
+    harness: claude-sdk
+
+interaction:
+  conversational: false
+  modalities:
+    input: [text]
+    output: [text]
+
+async: true
+cancellable: true
+

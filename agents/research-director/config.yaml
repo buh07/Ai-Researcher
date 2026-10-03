@@ -1,0 +1,55 @@
+spec_version: 1
+name: research-director
+description: >-
+  Top-level scientific research coordinator. It delegates evidence review,
+  hypothesis generation, experiment design, safety review, and result analysis
+  while keeping execution behind an explicit human-approval boundary.
+
+instructions: AGENTS.md
+
+executor:
+  type: omnigent
+  config:
+    harness: claude-sdk
+
+interaction:
+  conversational: true
+  modalities:
+    input: [text]
+    output: [text]
+
+async: true
+cancellable: true
+timers: false
+
+params:
+  minimum_experiment_candidates: 2
+  maximum_parallel_evidence_tasks: 3
+  require_human_experiment_approval: true
+  allow_experiment_execution: false
+
+tools:
+  agents:
+    - evidence-researcher
+    - hypothesis-scientist
+    - experiment-designer
+    - safety-reviewer
+    - results-analyst
+
+guardrails:
+  ask_timeout: 3600
+  policies:
+    tool_call_budget:
+      type: function
+      function:
+        path: omnigent.policies.builtins.safety.max_tool_calls_per_session
+        arguments:
+          limit: 80
+    session_cost_budget:
+      type: function
+      function:
+        path: omnigent.policies.builtins.cost.cost_budget
+        arguments:
+          max_cost_usd: 8.0
+          ask_thresholds_usd: [4.0]
+
