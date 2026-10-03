@@ -1,710 +1,857 @@
 # Agentic Scientific Discovery: 12-Hour Implementation Plan
 
-## Purpose
+## Purpose and source of truth
 
-This plan describes the work required to adapt the current memory-backed multi-agent
-orchestrator into an Atlas-free Agentic Scientific Discovery submission for the Databricks x
-Hack-Nation challenge.
+This repository-relative plan turns AI Researcher into a complete Agentic
+Scientific Discovery challenge submission. It is governed by
+[`challenge_brief.pdf`](challenge_brief.pdf) and requires no external source
+tree or machine-specific path.
 
-The source project is:
+The repository already provides the foundation:
 
-`/Users/benjaminhuh/Documents/GitHub/MongoDB Harness/Orchestrator_Harness/product`
+- `agents/research-director/` contains the Omnigent research director and five
+  specialist agents.
+- `src/ai_researcher/` contains scientific record validation, append-only
+  scientific records, mutable execution-binding projections, and the harness
+  adapter.
+- `harness/` contains the bounded multi-provider execution harness.
+- `tests/` contains bundle and research-integration coverage.
 
-The governing challenge brief is:
+### Current implementation baseline
 
-`/Users/benjaminhuh/Documents/GitHub/Databricks AI Researcher/challenge_brief.pdf`
+This table distinguishes checked-in capability from work still required by this
+plan. “Implemented” does not mean demonstrated in a live challenge run.
 
-The hard delivery limit is 12 elapsed hours. The plan allocates:
+| Area | Current checkout | Still required for the submission |
+|---|---|---|
+| Omnigent bundle | `agents/research-director/` defines a director and five specialists and pins `omnigent==0.16.0` through the project environment. | Enforce the objective gate and parallel-discovery evidence, then capture a live provider-backed run. |
+| Scientific contracts | `src/ai_researcher/records.py` validates the eight schemas documented in `docs/HANDOFF_CONTRACTS.md`. | Add the minimum objective/feasibility, branch-reconciliation, acceleration, and learning-receipt records or events. |
+| Journal | `src/ai_researcher/journal.py` keeps scientific `records` and `record_links` append-only while `experiment_bindings` is a mutable lifecycle projection with immutable experiment/approval identity. | Retain human-objective and branch provenance and reconstruct the expanded receipt without misrepresenting lifecycle status as an immutable record. |
+| Approval/execution boundary | Exact experiment-digest approval, separate staging/launch, and the `AI_RESEARCHER_ENABLE_EXECUTION` gate are implemented. | Add the separate human objective gate and prove all gates in the live path. |
+| Harness | `harness/` is integrated through `src/ai_researcher/harness_adapter.py`. | Configure a provider locally and capture one bounded real run; local credentials/configuration remain uncommitted. |
+| Scientific demonstration | Agent and integration fixtures exist. | Implement/run the matched OpenML experiment, acceleration/scaling analysis, result-driven next decision, `DEMO.md`, and rubric evidence. |
 
-- **7 hours 30 minutes for implementation and fixes**
-- **4 hours 30 minutes for unit tests, integration tests, regression tests, and demo rehearsal**
+The **12-hour window is our internal delivery budget**, not the challenge's
+published time limit. It allocates:
 
-The goal is a convincing vertical slice, not a production research platform.
+- **7 hours 30 minutes for implementation and release-blocking fixes**
+- **4 hours 30 minutes for unit, integration, regression, live-run, and demo
+  validation**
+
+The target is a convincing, reproducible discovery loop—not a production
+platform or a claim that a single benchmark is itself a major discovery.
 
 ## Required challenge outcome
 
-The finished prototype must demonstrate one complete loop:
+The submission must visibly complete:
 
-> Question -> Evidence -> Hypothesis -> Experiment -> Result -> Updated decision
+> Human-confirmed question -> cited evidence -> falsifiable hypothesis ->
+> candidate experiments -> selected experiment -> independent safety review ->
+> human approval -> measured result -> updated decision
 
 It must also show:
 
-1. Omnigent visibly orchestrating multiple specialist agents.
-2. Structured handoffs between agents rather than only conversational summaries.
-3. At least two candidate experiments, with one selected using expected learning,
-   feasibility, cost, and risk.
-4. A reproducible computational experiment.
-5. A result that changes the next scientific decision.
-6. Citations for factual claims and clear labeling of agent-generated hypotheses.
-7. Preserved uncertainty, controls, limitations, and evidence references.
-8. A human approval gate for consequential actions.
-9. A measured discovery-acceleration result, even if it is less than 10x.
-10. A two-minute demonstration supported by repository artifacts and run evidence.
+1. Omnigent visibly coordinating multiple purposeful specialists.
+2. Structured, journaled handoffs rather than only conversational summaries.
+3. At least two candidate experiments, compared on expected learning,
+   feasibility, cost, time, and risk before the planner recommends one.
+4. At least two independent bounded evidence searches or hypothesis evaluations
+   with recorded temporal overlap. Serial branches remain useful but do not
+   satisfy or earn a parallel-discovery claim.
+5. A reproducible computational experiment with matched controls.
+6. A result that changes the next scientific decision, including a negative or
+   inconclusive result.
+7. Traceable support for **every factual claim**: external citations for
+   literature/dataset facts, immutable run and artifact references for measured
+   facts, and evidence IDs for the facts that motivate hypotheses.
+8. Preserved uncertainty, controls, limitations, provenance, and source links.
+9. Human ownership of the research objective and human approval of the exact
+   consequential execution scope.
+10. An honestly measured discovery-acceleration result, even when below 10x,
+    plus an analysis of what would be required to approach 10x at scale.
+11. A creative contribution that strengthens rigor: a digest-bound **learning
+    receipt** connecting the objective, evidence, rejected alternatives,
+    approval, result, and next experiment.
+12. A two-minute demonstration backed by repository artifacts and run evidence.
 
-## Hard architecture decision
+## Authority model and mandatory human objective gate
 
-Omnigent will be the only live workflow orchestrator.
+The human scientist owns the scientific objective. The research director may
+draft or clarify a question, but cannot silently select a fallback question,
+dataset, metric, or risk posture.
 
-The existing harness will not compete with Omnigent for scheduling, session ownership, or
-agent-to-agent routing. Instead, its strongest components will become a research integrity
-kernel exposed to Omnigent through local Python tools or a small MCP surface.
+Before decision-bearing evidence collection, display an objective-confirmation
+packet and obtain explicit, attributable human confirmation of:
+
+1. **Research objective**—the focused question and intended scientific use.
+2. **Primary metric**—the single predeclared main comparison.
+3. **Dataset**—the exact task/dataset identifier, version, and digest or
+   pre-download identity.
+4. **Risk tolerance**—allowed risk, prohibited actions, privacy constraints,
+   and acceptable failure modes.
+5. **Consequential execution scope**—maximum trials, time, compute, network,
+   cost, and mutation permissions.
+
+This is separate from experiment approval. Objective confirmation authorizes
+planning against a fixed target; it does not authorize staging or execution. A
+later `human-approval/v1` authorizes only the exact selected-experiment digest.
+Launch remains a separate action and requires both explicit confirmation of
+that digest and `AI_RESEARCHER_ENABLE_EXECUTION=1`.
+
+If confirmation is absent after 15 minutes, the team may prepare the default
+proposal below for the human, but must not activate it. No agent or timer can
+confirm it on the human's behalf.
+
+### Objective-confirmation identity and downstream binding
+
+Objective confirmation must be an immutable, attributable record whose payload
+contains the exact `research-question/v1` digest plus the confirmed dataset
+identity/digest, primary metric, risk tolerance, and resource/network/mutation
+scope. Its `objective_confirmation_digest` is the SHA-256 of canonical JSON
+excluding the digest field itself.
+
+That digest is a required authority token throughout the chain:
+
+1. `research-question/v1` is recorded first; objective confirmation binds its
+   exact `record_digest`.
+2. `experiment-candidates/v1` carries the same
+   `objective_confirmation_digest`, and every candidate must fit the confirmed
+   dataset, metric, risk, and resource scope.
+3. `human-approval/v1` binds both the selected `experiment_digest` and the same
+   `objective_confirmation_digest`; experiment approval cannot silently expand
+   the earlier objective scope.
+4. `HarnessAdapter.prepare` validates all three bindings before staging and
+   copies the objective-confirmation digest into the generated task card.
+5. The immutable experiment/approval identity in the journal binding and every
+   later result/decision link traces back to that digest. Launch revalidates the
+   staged task-card digest and authority chain rather than trusting a caller's
+   experiment ID alone.
+
+Absent, unknown, stale, or mismatched objective digests fail closed at candidate
+acceptance, approval request, staging, and launch. A candidate that exceeds any
+confirmed permission or budget is **overscope** and cannot be cured by a safety
+review or broader experiment approval. Any change to the question, primary
+metric, dataset/version/digest, risk tolerance, or consequential scope requires
+new human objective confirmation; all dependent candidates, safety review,
+experiment approval, adapter preparation, and task card must then be regenerated
+and re-approved. Narrowing runtime use below the confirmed maxima does not
+require reconfirmation if it leaves the scientific question, metric, dataset,
+and controls unchanged and is recorded explicitly.
+
+Staleness is explicit, not based on “latest row”: a reconfirmation record names
+the prior confirmation digest in `supersedes_objective_confirmation_digest`.
+Once that edge is journaled, the superseded digest is invalid for any new
+approval, staging, or launch. Already running work is stopped or quarantined for
+human disposition; it is never silently adopted by the new objective.
+
+## Scientific significance and breakthrough potential
+
+### Why this bottleneck matters
+
+In computational science, generating candidates is often easier than choosing
+the next discriminating experiment while retaining enough provenance to trust
+the conclusion. Unproductive trials consume compute and scientist time, while
+weak links among literature, hypotheses, parameters, and results prevent teams
+from learning reliably from failure.
+
+The default vertical slice tests a narrow proxy for this bottleneck: whether
+evidence-guided selection reaches a predeclared validation target with fewer
+model-training trials than a fixed baseline under matched conditions. This is
+a test of **information gained per experiment**, not a claim that tabular
+classification is Nobel-level science.
+
+### Who benefits
+
+- Computational scientists selecting among costly experiments.
+- Principal investigators deciding how to allocate scarce compute.
+- Reviewers and collaborators reconstructing evidence and controls.
+- Safety and governance teams requiring independent review and exact human
+  authorization before consequential execution.
+
+### Larger breakthrough enabled by scaling
+
+If it survives multi-dataset and multi-domain validation, the same
+provenance-gated selection loop could reduce expensive simulations, screens, or
+wet-lab candidates needed to falsify weak hypotheses. The larger opportunity is
+an auditable active-learning layer for science: specialists search and propose
+in parallel while consequential actions remain bound to evidence, budgets,
+safety review, and human intent.
+
+The submission must label this as an enabling hypothesis and future validation
+path. A result on one OpenML task supports only a scoped finding.
+
+## Judging-rubric alignment
+
+| Weight | Criterion | Planned evidence and acceptance signal |
+|---:|---|---|
+| 30% | Omnigent orchestration | A live `research-director` session delegates bounded work to multiple specialists; at least two branch intervals actually overlap; structured handoffs, session identities, and timestamps are journaled; the result causes a visible plan update. Without measured overlap, parallel-discovery evidence is marked **UNMET**, not inferred from async configuration. |
+| 25% | Breakthrough potential | The demo names the experiment-selection bottleneck, beneficiaries, scientific significance, proxy-task limits, and the larger capability that multi-domain validation could unlock. |
+| 20% | Discovery acceleration and learning | Matched time/trial/cost/intervention measurements, exact formulas, negative-result handling, a result-driven next experiment, and a path-to-10x analysis. |
+| 15% | Scientific rigor | Predeclared metric, fixed data identity/splits/seeds, external citations for sourced facts, immutable run/artifact support for measurements, competing explanations, independent review, limitations, reproducibility, and tests. |
+| 10% | Creativity and responsibility | The learning receipt, searches with verified temporal overlap and reconciliation, separate safety role, two human gates, budget enforcement, and honest claim boundary. |
+
+The demo and submission inventory must point to a concrete artifact for every
+row. Presentation polish must not displace missing evidence in a higher-weight
+category.
+
+## Architecture and authority boundaries
+
+Omnigent is the only live scientific workflow orchestrator. The integrated
+harness is a bounded execution service, not a competing scheduler or scientific
+decision-maker.
 
 ```text
-Scientist / human approver
+Human scientist
+  |-- confirms objective, metric, dataset, risk, and execution scope
+  `-- approves the exact selected-experiment digest
             |
             v
-Omnigent PI / supervisor
-  |-- Evidence agent
-  |-- Hypothesis agent
-  |-- Experiment planner
-  |-- Experiment runner
-  `-- Analysis and safety reviewer
+Omnigent research director (`agents/research-director/`)
+  |-- evidence-researcher  -- up to three independent bounded searches
+  |-- hypothesis-scientist
+  |-- experiment-designer
+  |-- safety-reviewer      -- independent of design and analysis
+  `-- results-analyst      -- interprets immutable measurements
             |
             v
-Research integrity tools
-  |-- Typed scientific records
-  |-- Content hashes and provenance
-  |-- SQLite research journal
-  |-- Approval and safety records
-  |-- Time, cost, and resource budgets
-  `-- Experiment and artifact references
+Research integrity layer (`src/ai_researcher/`)
+  |-- typed records and SHA-256 identities
+  |-- append-only scientific records and provenance links
+  |-- mutable execution-binding lifecycle projection
+  |-- digest-bound approvals and execution gates
+  `-- translation from scientific specification to bounded task
             |
             v
-Experiment code + data + metrics + trace artifacts
+Integrated execution harness (`harness/`)
+  |-- staged task card, provider lane, budgets, and isolation
+  `-- status, metrics, logs, and artifact references
 ```
 
-Omnigent owns:
+Authority is deliberately split:
 
-- Agent sessions and specialist delegation
-- Agent instructions and tool access
-- Live handoffs and workflow adaptation
-- Sandboxing and policy enforcement
-- The challenge-visible orchestration experience
+- **Human scientist:** owns the objective and consequential approval.
+- **Research director:** owns workflow routing, sequencing, gate enforcement,
+  and faithful persistence/presentation of specialist outputs. It does not
+  duplicate the designer's experiment recommendation or the analyst's updated
+  decision.
+- **Specialists:** each own one non-overlapping determination declared below.
+- **`src/ai_researcher/`:** owns record validation, stable identity, journal
+  durability, approval binding, and harness translation.
+- **`harness/`:** owns execution lifecycle, isolation, provider invocation,
+  review evidence, and cleanup.
+- **Results analyst:** interprets immutable results but cannot change
+  measurements or approve execution.
 
-The reused project kernel owns:
+## Consolidated actor and agent contracts
 
-- Canonical scientific record validation
-- Content hashes and immutable identities
-- SQLite durability
-- Evidence and citation references
-- Human approval records
-- Experiment budgets and exclusive-resource leases
-- Exact links from question through updated decision
+| Actor or boundary | Non-overlapping decision or authority | Actual current tools/interactions | Required inputs | Required output |
+|---|---|---|---|---|
+| Human scientist | Research objective, primary metric, dataset, risk tolerance, execution scope, and final consequential approval | Objective-confirmation interaction and the exact digest-bound approval/launch interactions; no direct journal or measurement mutation | Objective packet, feasibility evidence, candidate comparison, safety review, exact experiment digest | Attributable objective confirmation, approval/rejection with constraints, and explicit launch decision |
+| `research-director` | Workflow routing, gate sequence, and preservation of disagreements; **no** independent objective, experiment-selection, safety, approval, or result-interpretation authority | Five declared sub-agents plus exactly `record_research_record`, `request_experiment_approval`, `stage_approved_experiment`, `launch_approved_experiment`, `get_experiment_status`, and `record_experiment_result` | Human-confirmed objective/scope and exact upstream records/budgets | Ordered handoffs, persisted specialist records, exact approval question/digests, status, and faithful presentation of the analyst's `updated-decision/v1` |
+| `evidence-researcher` | Whether each narrow external claim is supported and what source conflict/uncertainty remains | Built-in `web_search` only; no research-runtime, journal, execution, or approval tool | `question_id`, bounded evidence question, access constraints | `evidence-package/v1` with claim-level external citations, support, conflicts, and gaps |
+| `hypothesis-scientist` | Falsifiable hypothesis portfolio, predictions, falsifiers, and competing explanations | No configured tools; operates only on supplied records | Fixed question and supplied evidence IDs | `hypothesis-portfolio/v1` with competing explanations and uncertainty |
+| `experiment-designer` | Candidate designs, ranking, and exactly one selection recommendation under declared criteria | No configured tools; operates only on supplied records | Confirmed scope/digest, routed hypothesis, evidence, data/compute envelope | `experiment-candidates/v1` with at least two candidates, selected ID, selection rationale, and rejected-candidate rationales |
+| `safety-reviewer` | Independent `APPROVAL_REQUIRED`, `REVISE`, or `REJECT` verdict and required controls | No configured tools; operates only on supplied records | Selected candidate and objective digests, confirmed risk/scope, budgets, controls | `safety-review/v1` with risks, controls, prohibited actions, limitations, and exact approval question |
+| `results-analyst` | Scientific interpretation (`support`, `revise`, `reject`, or `inconclusive`) and next-experiment recommendation | No configured tools; operates only on supplied immutable records | Accepted `experiment-result/v1`, original hypothesis/specification, controls, evidence | `updated-decision/v1` with rationale, evidence/result references, uncertainty, and result-driven next experiment |
+| Execution harness/tool boundary | No scientific decision; execution of only the authorized task and reporting of observations | No agent tools or shell route; reachable only through the director's six research-runtime tools and `HarnessAdapter` | Confirmed objective digest/scope, selected-experiment digest, matching approval, safety controls, task-card digest, environment gate, and budgets | Mutable lifecycle projection plus immutable run/result record, metrics, logs, artifact digests, and resource use |
+
+The harness is not a specialist agent. It executes an exact approved task and
+returns measurements; it makes no scientific judgment. The same agent may not
+both design an experiment and perform its independent safety review.
 
 ## Default scientific vertical slice
 
-Unless another question is selected in the first 15 minutes, use this scoped AI-research
-question:
+Subject to explicit human confirmation, propose this scoped question:
 
-> On one fixed OpenML tabular classification task, can provenance-gated, evidence-guided
-> experiment selection reach a target validation score with fewer model-training trials than a
-> fixed baseline search?
+> On one fixed OpenML tabular classification task, can provenance-gated,
+> evidence-guided experiment selection reach a predeclared validation score
+> with fewer model-training trials than a fixed baseline search?
 
-Why this is the default:
+Why it is a useful proposal:
 
-- It can be executed computationally within the time limit.
-- OpenML provides a reproducible task and dataset identity.
-- The current harness already excels at bounded computation, evidence, and reviewed outcomes.
-- It creates a measurable bottleneck: the number and duration of trials needed to reach a target.
-- A negative or inconclusive result can still produce a valid updated decision.
+- It is likely to fit the internal delivery and compute budgets.
+- OpenML can provide a stable task/dataset identity, while a checked local
+  fixture can keep tests independent of network availability.
+- It creates a measurable bottleneck: trials and time to a target.
+- Negative or inconclusive evidence can still guide the next investigation.
+- It demonstrates an auditable pattern for later domain-relevant validation.
 
-Primary measurements:
+Proposed measurements:
 
-- Wall-clock time to a predeclared target score
-- Number of completed model-training trials
+- Completed trials to the predeclared target (**primary**)
 - Best held-out score under a fixed trial budget
-- Compute time and agent/tool cost
-- Human interventions required
-- Time from experiment completion to updated decision
+- Wall-clock and compute time
+- Agent/tool cost or token usage where available
+- Human interventions
+- Time from accepted result to updated decision
 
-The comparison must use matched data splits, seeds, metric definitions, and compute limits.
-The prototype must not claim general scientific superiority from one dataset.
+Matched conditions must include dataset version, split, seeds, metric, trial
+budget, and compute limits. Failed trials remain in the denominator. No general
+superiority claim may be inferred from one task.
 
-Candidate experiments produced by the planner:
+The designer must create and compare at least two candidates. Illustrative
+options—not predetermined selections—include:
 
-1. **Selected experiment:** matched baseline search versus evidence-guided selection on one
-   OpenML task.
-2. **Recorded alternative:** ablation comparing evidence-guided selection with and without
-   reviewed failure memory.
+- Matched fixed baseline search versus evidence-guided selection.
+- An ablation of evidence-guided selection with and without reviewed failure
+  memory.
 
-The planner must retain both specifications and record why one was selected. The alternative
-becomes the proposed next experiment unless the first result justifies a different decision.
+The planner selects only after applying the declared comparison criteria. No
+alternative is presumed to be the next experiment: the immutable result and
+remaining uncertainty must determine the next step.
+
+## Parallel discovery requirement
+
+The live run must demonstrate both independence and real temporal overlap, not
+merely list async-capable agents:
+
+1. Split evidence work into at least two bounded questions, such as
+   dataset/metric validity and experiment-selection evidence.
+2. Dispatch them without sharing intermediate conclusions and capture
+   authoritative `started_at` and `completed_at` timestamps for each invocation.
+3. Count branches A and B as parallel only when their half-open execution
+   intervals overlap: `A.started_at < B.completed_at` **and**
+   `B.started_at < A.completed_at`. Queue time or two `async: true` declarations
+   are not proof of overlap.
+4. Preserve every `evidence-package/v1`, agent/session identity, timing,
+   sources, gaps, and disagreements.
+5. Have the director preserve and route conflicts explicitly rather than averaging or
+   hiding them.
+6. If time allows, evaluate two hypotheses independently within the same fixed
+   evidence and budget envelope.
+
+Acceptance requires visible handoffs, at least one pair of overlapping
+intervals, and a journal reconstruction showing both branches and their
+reconciliation. If the runtime serializes all branches, report useful
+independent work but mark the parallel-discovery acceptance criterion and its
+rubric evidence **UNMET**. Do not substitute a disclosure for compliance or
+claim parallel speedup.
 
 ## Scope boundaries
 
-### Must ship in 12 hours
+### Must ship within the internal budget
 
-- A pinned, runnable Omnigent agent bundle
-- One PI/supervisor and at least four purposeful specialist agents
-- Atlas-free active runtime and configuration
-- A local SQLite research journal
-- Typed question, evidence, hypothesis, experiment, result, approval, and decision records
-- Claim-level citation references
-- One real computational experiment with a baseline
+- The pinned, runnable bundle at `agents/research-director/`
+- One research director and five bounded specialists
+- Human objective confirmation whose digest is bound through candidates,
+  approval, adapter, task card, execution binding, and result chain
+- SQLite journal and record validation in `src/ai_researcher/`
+- At least two independent evidence branches and reconciliation
+- One real computational experiment with a matched baseline
 - One result-driven updated decision
-- One human approval gate before experiment execution
-- Time, trial-count, and cost/usage measurements
-- Focused unit tests, an end-to-end fixture test, existing local regression, and a live demo run
-- Demo instructions, known limitations, and submission evidence
+- Trial/time/compute/cost/intervention/decision-latency measurements
+- Observed acceleration plus a path-to-10x analysis
+- Unit tests, a hermetic end-to-end fixture, harness regression, and live run
+- Quickstart, `DEMO.md`, limitations, submission inventory, and rubric evidence
 
 ### Explicitly out of scope
 
-- A complete physical deletion of every historical Atlas test, document, and compatibility type
-- A new vector database
-- General-purpose autonomous scientific discovery
-- Wet-lab execution
-- More than one scientific domain
-- More than one primary dataset
+- General autonomous scientific discovery or wet-lab execution
+- More than one primary domain or dataset in the live demo
 - A learned experiment-selection policy
-- A production multi-tenant service
-- A full rewrite of the current launcher/controller lifecycle
+- A production multi-tenant service or harness rewrite
 - A new web application or polished dashboard
-- Broad benchmark claims or a claimed 10x improvement without matched evidence
+- Broad benchmark/causal claims or an unsupported claim of 10x improvement
 
-Historical Atlas modules may remain in the tree if they are unreachable from the active product.
-The submission must have no Atlas dependency, credentials, calls, or required configuration.
+## Planned repository work
 
-## Planned repository changes
+### 1. First-30-minute objective and feasibility gate
 
-### 1. Establish an Atlas-free runtime
+Use repository-relative configuration and artifacts. Record the Git commit and
+lockfile identity, then verify:
 
-Modify the active product so the challenge workflow cannot call Atlas.
+- Human confirmation of the objective, metric, exact dataset/task, risk
+  tolerance, and execution scope
+- Dataset availability from the declared source or checked cache
+- Stable task/version identity and dataset digest
+- License and access terms for retrieval, caching, processing, and any
+  redistributed fixture or derived artifact
+- Authentication/API availability without placing credentials in records
+- Estimated download, RAM, CPU/GPU, runtime, trial count, and cost inside scope
+- A license-compatible miniature fixture so tests do not depend on OpenML
+- A named fallback that still requires human confirmation before use
 
-Required changes:
+**Exit gate:** an attributable objective-confirmation artifact and feasibility
+checklist with `PASS` for access, identity, license, privacy, API, and compute.
+Any `FAIL` blocks the live experiment and cannot be downgraded by an agent.
 
-- Remove `langchain-mongodb` from the active optional dependencies used by the submission.
-- Make shared Atlas retrieval and shared publication disabled by default.
-- Remove `atlas_memory_only` from challenge-facing network choices.
-- Route procedure/history lookup to local SQLite and, only if already working, optional EverOS.
-- Prevent challenge entry points from importing `atlas.py` or `atlas_adapters.py`.
-- Remove Atlas credentials and environment variables from setup and demo instructions.
-- Mark retained Atlas modules as legacy compatibility code excluded from the challenge runtime.
-- Exclude live Atlas tests from the challenge test command.
+### 2. Harden the current Omnigent bundle
 
-Acceptance gate:
-
-- The application starts in a clean environment without MongoDB packages or credentials.
-- The end-to-end research loop completes with network access limited to declared research sources.
-- A source scan finds no Atlas import in the new Omnigent bundle or research runtime.
-
-### 2. Add the Omnigent agent bundle
-
-Create a self-contained bundle, preferably under:
+Work in the existing layout:
 
 ```text
-product/omnigent/research-lab/
+agents/research-director/
 |-- config.yaml
 |-- AGENTS.md
-|-- skills/
-|-- tools/
+|-- skills/scientific-discovery/SKILL.md
+|-- tools/python/research_runtime.py
 `-- agents/
-    |-- evidence-agent/
-    |-- hypothesis-agent/
-    |-- experiment-planner/
-    |-- experiment-runner/
-    `-- analysis-reviewer/
+    |-- evidence-researcher/
+    |-- hypothesis-scientist/
+    |-- experiment-designer/
+    |-- safety-reviewer/
+    `-- results-analyst/
 ```
 
-Agent responsibilities:
+- Preserve and report the current tested pin, `omnigent==0.16.0`.
+- Keep five explicit specialists and least-privileged tools.
+- Enforce tool-call and session-cost budgets in `config.yaml`.
+- Require objective confirmation before decision-bearing work.
+- Require exact-digest human approval and an explicit launch action.
+- Deny undeclared shell, network, approval, measurement-mutation, and launch
+  paths where supported.
+- Journal director/specialist identities and authoritative invocation timing;
+  assert parallelism only after interval-overlap validation.
 
-- **PI/supervisor:** owns the question, budget, sequencing, human approval request, and final
-  updated decision.
-- **Evidence agent:** retrieves sources, creates evidence claims, and attaches citations.
-- **Hypothesis agent:** creates falsifiable hypotheses and predictions from approved evidence.
-- **Experiment planner:** produces at least two experiment specifications and ranks them by
-  expected learning, feasibility, cost, time, and risk.
-- **Experiment runner:** executes only an approved specification and publishes machine-readable
-  metrics and artifacts.
-- **Analysis reviewer:** verifies controls, compares results to the hypothesis, records
-  uncertainty and limitations, and proposes the next decision. It must not approve its own
-  unsafe action.
+**Exit gate:** bundle validation passes; multiple structured handoffs occur;
+safety and analysis stay separate; execution is impossible without a current,
+matching objective digest, experiment approval, explicit launch confirmation,
+and the environment gate. A parallel claim additionally requires measured
+overlap.
 
-Omnigent configuration must:
+### 3. Use and extend current scientific record contracts
 
-- Pin the exact tested Omnigent version.
-- Declare the sub-agents explicitly.
-- Limit each agent to the tools it needs.
-- Set a maximum cost or tool-call budget.
-- Require human approval for the experiment execution tool.
-- Deny undeclared shell, network, or mutation routes where supported.
-- Record the Omnigent session and sub-agent identifiers in the research journal.
+The canonical implementation is `src/ai_researcher/records.py`, documented by
+`docs/HANDOFF_CONTRACTS.md`. Preserve the current schema names:
 
-Acceptance gate:
+1. `research-question/v1`
+2. `evidence-package/v1`
+3. `hypothesis-portfolio/v1`
+4. `experiment-candidates/v1`
+5. `safety-review/v1`
+6. `human-approval/v1`
+7. `experiment-result/v1`
+8. `updated-decision/v1`
 
-- A live Omnigent session visibly delegates to multiple specialist agents.
-- Agent outputs are persisted as typed records, not only chat messages.
-- The experiment runner cannot execute before approval.
+Use these current contracts for the question/metric/constraints; cited evidence,
+conflicts, and gaps; falsifiable hypotheses; multiple candidates and selection
+rationale; independent safety review; exact-digest execution approval; immutable
+result identity/metrics/artifacts/limitations; and result-driven next decision.
 
-### 3. Add scientific record contracts
+Add the smallest explicit record types or journal events required for:
 
-Add a focused module rather than expanding the existing 200,000-line contract module during the
-hackathon. Suggested path:
+- Objective confirmation of all five human-owned fields, the exact question
+  digest, and the downstream binding rules above
+- Data/access/license/privacy/API/compute feasibility
+- Parallel branch start/completion and reconciliation
+- Acceleration summary and path-to-10x scenarios
 
-`product/src/memory_harness/research_contracts.py`
+All records use canonical JSON and SHA-256 identities. Exact referenced IDs and
+digests must validate. Malformed, unsupported, cross-question, stale,
+overscope, or mismatched records fail closed.
 
-Implement these closed records:
+### 4. Extend scientific records and execution projections
 
-#### `research-question/v1`
+Use `src/ai_researcher/journal.py`; do not introduce a second store.
 
-- `question_id`
-- `question`
-- `domain`
-- `measurable_outcome`
-- `primary_metric`
-- `constraints`
-- `created_at`
-- `content_hash`
-
-#### `evidence-claim/v1`
-
-- `evidence_id`
-- `claim`
-- `claim_type`: `external_fact`, `observed_result`, or `background`
-- `source_id`
-- `citation`
-- `retrieved_at`
-- `supporting_excerpt_or_field`
-- `verification_state`
-- `uncertainty`
-- `content_hash`
-
-#### `hypothesis/v1`
-
-- `hypothesis_id`
-- `question_id`
-- `statement`
-- `prediction`
-- `falsification_condition`
-- `supporting_evidence_ids`
-- `competing_explanations`
-- `uncertainty`
-- `status`
-- `content_hash`
-
-#### `experiment-spec/v1`
-
-- `experiment_id`
-- `hypothesis_id`
-- `candidate_id`
-- `method`
-- `baseline`
-- `controls`
-- `dataset_id` and dataset digest/version
-- `parameters`
-- `random_seeds`
-- `metrics`
-- `success_threshold`
-- `expected_learning`
-- `estimated_runtime`
-- `estimated_cost`
-- `risk_level`
-- `approval_required`
-- `content_hash`
-
-#### `experiment-result/v1`
-
-- `run_id`
-- `experiment_id`
-- `code_commit`
-- `environment_digest`
-- `dataset_digest`
-- `started_at` and `completed_at`
-- `parameters`
-- `metrics`
-- `artifact_refs`
-- `stdout_or_log_digest`
-- `status`
-- `limitations`
-- `content_hash`
-
-#### `human-approval/v1`
-
-- `approval_id`
-- `experiment_digest`
-- `decision`: `APPROVED` or `REJECTED`
-- `decided_by`
-- `reason`
-- `decided_at`
-- `content_hash`
-
-#### `updated-decision/v1`
-
-- `decision_id`
-- `question_id`
-- `hypothesis_id`
-- `experiment_result_id`
-- `decision`: `support`, `revise`, `reject`, or `inconclusive`
-- `rationale`
-- `evidence_ids`
-- `next_experiment_id`
-- `remaining_uncertainty`
-- `human_review_state`
-- `content_hash`
-
-Reuse the project's canonical JSON and content-hash functions. Every relationship must be checked
-against the exact referenced record and digest.
-
-Acceptance gate:
-
-- Malformed, uncited, cross-question, stale, or digest-mismatched records fail closed.
-- A complete valid chain can be reconstructed from question to updated decision.
-
-### 4. Add a small research journal
-
-Add a narrow append-only SQLite component, preferably:
-
-`product/src/memory_harness/research_store.py`
-
-Do not substantially refactor the existing `MemoryStore` during the 12-hour build. Reuse its
-conventions and integrity helpers, but keep the new schema isolated enough to test quickly.
-
-Required behavior:
-
-- Store every typed scientific record by ID and content hash.
-- Reject conflicting replays.
-- Preserve insertion time and producing Omnigent session/agent identity.
-- Support exact lookup and ordered listing by question.
-- Expose a complete-chain read for the final report.
+- Keep rows in `records` and `record_links` append-only scientific history,
+  addressed by schema identity and content digest. Reject conflicting replays
+  and preserve insertion time and producing Omnigent session/agent identity.
+- Treat `experiment_bindings` accurately as a **mutable lifecycle projection**:
+  `lane_id`, `run_id`, `status`, and `updated_at` may advance in place, while
+  current `experiment_id`, `experiment_digest`, and `approval_digest` remain
+  invariant. Extend those invariant authority fields with
+  `objective_confirmation_digest` and `task_card_digest`. It is operational
+  state, not an immutable scientific record.
+- Support exact lookup, ordered listing, and complete-chain reconstruction.
+- Retain parallel branch metadata and explicit reconciliation.
 - Never treat visibility as scientific approval.
-- Keep secrets, API keys, and raw credentials out of records.
+- Keep secrets, credentials, and private source content out of records.
 
-Acceptance gate:
+**Exit gate:** restart preserves the chain; conflicts and missing provenance fail
+atomically; lifecycle transitions cannot rewrite their immutable authority
+fields; the learning receipt reconstructs the human-confirmed objective through
+the result-driven next experiment.
 
-- Restarting the process preserves the complete chain.
-- Conflicting writes and missing provenance fail without partial mutation.
+### 4a. Define the learning receipt as a deterministic projection
 
-### 5. Implement research tools
+The learning receipt is not free-form agent prose and not a second source of
+truth. `learning-receipt/v1` is a deterministic read-only projection of one
+validated journal chain plus the current execution-binding snapshot.
 
-Expose a minimal tool surface to Omnigent:
+Required projection fields:
 
-- `record_question`
-- `record_evidence_claim`
-- `record_hypothesis`
-- `record_experiment_candidates`
+- `schema`, `question_id`, `question_digest`, and
+  `objective_confirmation_digest`
+- sorted `evidence_package_digests`, `reconciliation_digest`,
+  `hypothesis_portfolio_digest`, and `experiment_candidates_digest`
+- `selected_experiment_id`, `experiment_digest`, `safety_review_digest`, and
+  `human_approval_digest`
+- `task_card_digest`, `experiment_result_digest`, `updated_decision_digest`, and
+  `acceleration_summary_digest`
+- sorted normalized provenance edges as
+  `{parent_digest, relation, child_digest}`
+- `execution_snapshot` containing only `experiment_id`, `lane_id`, `run_id`,
+  `status`, `objective_confirmation_digest`, `experiment_digest`,
+  `approval_digest`, and `task_card_digest`
+- `receipt_digest`
+
+Projection algorithm:
+
+1. Start from one explicitly requested `question_id` and its confirmed question
+   digest; never choose “latest.”
+2. Traverse only validated `record_links` reachable from that question and
+   require exactly one digest for every singular field. Missing, conflicting,
+   cross-question, or unlinked records fail projection.
+3. Select evidence packages explicitly linked to the question and sort all
+   digest lists and provenance edges lexicographically. Do not use insertion
+   order, database row order, filesystem paths, or wall-clock generation time.
+4. Join the binding only when its invariant objective, experiment, approval,
+   and task-card digests match the selected immutable records/artifact. Copy
+   the whitelisted lifecycle fields as a snapshot; never describe that snapshot
+   as append-only.
+5. Compute `task_card_digest` from the exact staged task-card bytes and verify
+   that the card contains the matching objective, experiment, and approval
+   digests.
+6. Canonically serialize the projection with sorted keys and finite JSON, omit
+   `receipt_digest`, and set it to the SHA-256 of those bytes. Identical journal
+   state and task-card bytes must yield an identical receipt digest.
+
+The final submission receipt is generated only after a terminal result and
+updated decision exist. An earlier receipt is a state-specific preview with a
+different digest, never silently overwritten or presented as final.
+
+### 5. Keep one narrow tool surface
+
+The existing tool module is
+`agents/research-director/tools/python/research_runtime.py`, with these current
+public tools:
+
+- `record_research_record`
 - `request_experiment_approval`
-- `record_human_approval`
-- `run_approved_experiment`
-- `record_interpretation`
-- `record_updated_decision`
-- `read_research_chain`
+- `stage_approved_experiment`
+- `launch_approved_experiment`
+- `get_experiment_status`
+- `record_experiment_result`
 
-The experiment tool must:
+Extend it only as needed to record/read objective confirmation, feasibility,
+parallel work, and the learning receipt. Do not add a second shell or custom MCP
+execution path.
 
-- Require an exact approved experiment digest.
-- Use a fixed dataset version and deterministic split.
-- Enforce the trial, time, and compute budget.
-- Run baseline and proposed methods under matched conditions.
-- Capture command, environment, package versions, seeds, runtime, metrics, and artifact digests.
-- Return structured output without allowing an agent to rewrite the measured values.
+Update the existing approval/stage/launch signatures or their validated payloads
+so the objective-confirmation digest is mandatory. The adapter must reject an
+absent/stale/mismatched digest, an overscope candidate, a task-card digest that
+does not match the staged file, or a chain invalidated by reconfirmation.
+Execution must require exact objective and experiment authority plus the
+environment gate; enforce data, trial, time, compute, network, and cost scope;
+run matched methods; and capture task/command identity, code commit,
+environment/lock, package versions, seeds, runtime, metrics, logs, and artifact
+digests. Agents must not be able to rewrite returned measurements.
 
-Use a local Python tool before building a custom MCP server. Add MCP only if Omnigent's local tool
-path cannot satisfy the live demonstration.
+### 6. Enforce citations and evidence distinctions
 
-### 6. Add citation and evidence checks
+Every factual claim must be traceable, but the correct support depends on its
+type:
 
-The evidence agent must return source metadata with every factual claim. At minimum retain:
+- **External factual claims** about literature, datasets, tools, or prior work
+  require an `evidence-package/v1` claim and external citation metadata.
+- **Observed measurements** are not literature claims. They require the exact
+  immutable `experiment-result/v1` digest, `run_id`, metric key, and supporting
+  artifact/log digest. Do not manufacture an external citation for a local run.
+- **Agent-generated hypotheses** are not facts or results. Each hypothesis must
+  identify its `supporting_evidence_ids`; those IDs must resolve to cited claims
+  in the supplied evidence packages.
+- **Interpretations** must reference the result digest and metric fields they
+  interpret, and use evidence IDs only for any additional external context.
+
+External citation metadata includes:
 
 - Stable URL, DOI, OpenAlex ID, arXiv ID, or OpenML ID
-- Title and source/publisher
-- Author or organization when available
-- Retrieval timestamp
-- Supporting passage or structured source field
+- Title, publisher/source, and author/organization when available
+- Retrieval time and supporting passage or structured field
 - License/access note when relevant
-- Verification status
+- Verification state and uncertainty
 
-Add a deterministic validator that rejects:
+Reject external facts without citations, unknown/missing source or evidence
+IDs, hypotheses presented as facts, measurements lacking immutable run/artifact
+support, and measurements presented as literature evidence. Results analysis
+must separate observations, statistical interpretation, agent-generated
+hypotheses, limitations, and unresolved uncertainty.
 
-- Factual claims with no citation
-- Unknown source IDs
-- Hypotheses mislabeled as external facts
-- Experiment results represented as literature evidence
-- Citations whose source record is missing
+### 7. Implement the experiment and decision loop
 
-The analyst must clearly separate:
+Use a small stable OpenML task that passes the initial gate and downloads
+quickly, with a license-compatible miniature test fixture.
 
-- Observed measurements
-- Statistical interpretation
-- Agent-generated hypotheses
-- Limitations and unresolved uncertainty
+- Predeclare primary metric and threshold.
+- Fix data version/digest, split, and seeds before execution.
+- Compare one inexpensive baseline and one evidence-guided policy under the
+  same maximum trials and compute.
+- Retain failed, cancelled, and timed-out trials.
+- Calculate trials to threshold, best metric, wall/compute time, interventions,
+  cost where available, and decision-update latency.
+- Require `results-analyst` to recommend `support`, `revise`, `reject`, or
+  `inconclusive` without changing measurements.
+- Journal the proposed updated decision and a next experiment justified by the
+  actual result and remaining uncertainty—not by a preselected fallback.
 
-### 7. Implement the experiment and updated-decision loop
+A valid negative or inconclusive result is preferable to an inflated positive.
 
-The chosen vertical slice should use a small, stable OpenML classification task that downloads
-quickly and can also be cached as a test fixture.
+### 8. Measure acceleration and analyze a path to 10x
 
-Implementation requirements:
+Create a machine-readable summary containing matched baseline/proposed trial
+counts, time, best metric, interventions, cost/token use where available,
+decision latency, the exact formula/denominator, uncertainty where supported,
+and threats to validity.
 
-- Predeclare the primary metric and success threshold.
-- Fix data split and seeds before execution.
-- Use one inexpensive baseline search policy.
-- Use one evidence-guided selection policy.
-- Apply the same maximum number of trials to both.
-- Record failed trials rather than hiding them.
-- Calculate wall time, best score, trials to threshold, and intervention count.
-- Require the analysis reviewer to recommend `support`, `revise`, `reject`, or `inconclusive`.
-- Have the PI/supervisor persist the updated decision and name the next experiment.
+Predeclare these endpoint rules before either arm runs:
 
-The result is acceptable even when it rejects the hypothesis, provided the evidence is valid and
-changes what the lab proposes next.
+- A trial counts when model fitting or the arm's trial-specific computation is
+  attempted. `FAIL`, `ERROR`, and timeout attempts consume one trial and their
+  actual runtime/cost; retries are new trials. A preflight rejection before
+  trial-specific work is logged but not counted. Apply this rule identically.
+- `trials_to_threshold` is the ordinal of the first counted trial whose
+  preregistered evaluation meets the threshold. If an arm does not reach it
+  within budget `B`, store `value: null`, `censored: true`, and
+  `lower_bound_exclusive: B` rather than substituting `B`, infinity, or a poor
+  score.
+- When **both** arms reach the threshold, trial-efficiency speedup is
+  `baseline_trials_to_threshold / proposed_trials_to_threshold`. Threshold-time
+  speedup is `baseline_elapsed_to_threshold / proposed_elapsed_to_threshold`.
+- Arm elapsed time begins when that arm's selection policy starts and includes
+  retrieval/planning/agent/tool overhead, preprocessing, failed attempts,
+  training, evaluation, and result ingestion through the threshold event.
+  Shared one-time setup may be reported separately only when it is identical
+  and excluded from both arms; proposed-method overhead may never be excluded
+  selectively.
+- If neither arm reaches the threshold, acceleration is `NOT_ESTIMABLE`. If the
+  proposed arm reaches it and the baseline is censored, report only the lower
+  bound `baseline budget / proposed trials` and the categorical outcome; do not
+  report a finite x-speedup. If the proposed arm is censored, report no speedup.
+- Make no positive acceleration claim when either arm is censored, the ratio is
+  at most 1, controls/budgets differ, overhead is missing, a primary-quality
+  non-inferiority condition fails, or the result relies on a post-hoc threshold.
+  A trial-efficiency improvement with wall-clock ratio at most 1 must be labeled
+  **trial efficiency only**, not faster discovery.
 
-### 8. Add acceleration measurement and tracing
+Report observed ratios exactly; never round a smaller gain up to 10x or turn a
+censored comparison into a point estimate. Then add a scaling analysis covering:
 
-Create one summary record containing:
+1. **Remaining bottlenecks:** source access/quality, serial approvals, provider
+   latency, runtime, reconciliation, and human review.
+2. **Parallelizable/automatable work:** independent retrieval, citation checks,
+   candidate generation, safe simulations, result parsing, and provenance
+   assembly; objectives and consequential approvals remain human-owned.
+3. **Expected scaling:** separate fixed setup cost, candidate/dataset-dependent
+   work, parallel speedup ceilings, and rate/compute limits.
+4. **Evidence still needed:** repeated seeds, multiple tasks, evidence/failure-
+   memory ablations, domain datasets, prospective runs, and intervals.
+5. **Conditions for approaching 10x:** sufficiently costly baseline search,
+   useful early evidence, high safe parallelism, structured/cached sources,
+   automated validation, reliable providers, and no loss in quality or safety.
 
-- Baseline wall-clock time
-- Proposed-method wall-clock time
-- Baseline and proposed trial counts
-- Best matched-condition metric for each method
-- Human intervention count
-- Agent/tool cost or token usage when available
-- Acceleration ratio and its exact formula
-- Limitations of the comparison
+Include conservative, expected, and optimistic sensitivity scenarios. Label
+these forecasts separately from observed results.
 
-Use MLflow if a working local or Databricks experiment can be configured within 15 minutes. Log:
+### 9. Deliver creative, responsible demo artifacts
 
-- Parameters
-- Metrics
-- Artifacts
-- Agent/tool traces when available
-- Omnigent session identifiers
-
-If MLflow setup is blocked after 15 minutes, retain the same information in the immutable local
-research journal and JSON artifacts. Do not sacrifice the complete discovery loop to tracing
-setup.
-
-### 9. Adapt the terminal view and demo artifacts
-
-Do not build a new UI. Adapt or supplement the current viewer to present:
+Use a terminal-first view rather than a new UI:
 
 ```text
-Question | Evidence | Hypothesis | Experiment | Result | Decision
+Objective confirmation | Evidence branch timing | Hypotheses | Candidates
+Safety review | Human approval | Result | Updated decision | Learning receipt
 ```
 
-The demo must make the following visible:
-
-1. The scientific question and metric.
-2. Omnigent delegating to specialist agents.
-3. Cited evidence arriving.
-4. Two experiment candidates and the selection rationale.
-5. The human approval gate.
-6. Experiment execution and measured result.
-7. The updated decision and next experiment.
-8. The measured acceleration comparison.
+The two-minute demo must show the objective and feasibility gates, evidence
+branch timestamps with verified overlap (or an explicit **UNMET** marker),
+reconciliation, two candidates and comparison, separate safety review, exact
+approval, bounded execution, immutable measurements, result-driven next
+decision, honest acceleration/scaling, and the complete learning receipt.
 
 Required repository artifacts:
 
-- `README.md` challenge quickstart
-- `DEMO.md` two-minute script
-- Agent bundle and policies
-- Experiment code
-- Machine-readable research records
-- Test commands and results
-- Known limitations and validation still required
+- `README.md` challenge quickstart and `DEMO.md` script
+- Agent definitions, contracts, and policies
+- Experiment source plus dataset identity/license record
+- Machine-readable research chain and learning receipt
+- Reproducible commands, test/run evidence, rubric evidence matrix, limitations,
+  and validation still required
 
-## Exact 12-hour schedule
+## Internal delivery schedule
 
-| Window | Work | Change time | Test time | Exit gate |
+| Window | Work | Change | Test | Exit gate |
 |---|---|---:|---:|---|
-| 00:00-00:30 | Freeze the question, metric, dataset, current Git commit, Omnigent route, and dependency versions. Run baseline imports and focused tests. | 0:15 | 0:15 | One written question, one primary metric, one dataset, clean baseline. |
-| 00:30-01:30 | Disable Atlas in active dependencies/configuration and add the Atlas-free local runtime seam. | 0:45 | 0:15 | Product imports and local memory path work without MongoDB packages or credentials. |
-| 01:30-03:00 | Create and pin the Omnigent PI/specialist agent bundle, local tools, permissions, and budget policy. | 1:15 | 0:15 | Omnigent starts and performs one supervisor-to-specialist fixture handoff. |
-| 03:00-04:30 | Implement scientific record contracts and the append-only research journal. | 1:00 | 0:30 | Unit tests prove valid chains, conflict rejection, digest validation, and restart durability. |
-| 04:30-06:00 | Implement typed handoff tools, citation validation, and the human experiment-approval gate. | 1:00 | 0:30 | Missing citation and missing approval tests fail closed; approved fixture proceeds. |
-| 06:00-08:00 | Implement baseline/proposed experiment runner, metrics capture, interpretation, and updated decision. | 1:30 | 0:30 | Deterministic fixture completes the full loop and records a next decision. |
-| 08:00-09:00 | Add acceleration summary and MLflow tracing if immediately available; otherwise finalize local trace artifacts. | 0:45 | 0:15 | Timing, trial count, result metrics, and exact acceleration formula are reproducible. |
-| 09:00-10:00 | Adapt the viewer/status output and write quickstart, demo script, limitations, and submission inventory. | 0:45 | 0:15 | A clean checkout can follow the documented demo path. |
-| 10:00-11:15 | Run new unit/integration tests, existing local memory suite, harness regression, Atlas-free import scan, and live Omnigent end-to-end run. | 0:00 | 1:15 | Required tests pass; skips and unavailable integrations are reported honestly. |
-| 11:15-12:00 | Fix only release-blocking defects, rerun affected tests, rehearse the two-minute demo, and capture final evidence. | 0:15 | 0:30 | Demo completes twice from a fresh runtime with retained evidence and no manual file repair. |
-| **Total** |  | **7:30** | **4:30** | **12:00 maximum** |
+| 00:00-00:30 | Record identities; confirm objective/metric/data/risk/scope; verify data/API access, license/privacy, digest, cache, and compute/cost. | 0:15 | 0:15 | Attributable confirmation and every feasibility check pass. |
+| 00:30-01:30 | Harden agent contracts, objective gate, parallel instructions, permissions, and budgets. | 0:45 | 0:15 | Bundle validates; human ownership/role independence hold; overlap is measured or the rubric item is marked unmet. |
+| 01:30-03:00 | Extend records, journal events, and tools for gates, parallel branches, reconciliation, and receipt. | 1:15 | 0:15 | Schema tests and multi-branch reconstruction pass. |
+| 03:00-04:30 | Complete citation, cross-record, digest, scope, approval, and immutable-result checks. | 1:00 | 0:30 | Invalid inputs and measurement mutation fail closed. |
+| 04:30-06:30 | Implement matched runner, metrics, independent analysis, and updated decision. | 1:30 | 0:30 | Deterministic fixture records a result-driven next experiment. |
+| 06:30-07:30 | Add acceleration, path-to-10x scenarios, and rubric mapping. | 0:45 | 0:15 | Formulas reproduce; observations and forecasts are separate. |
+| 07:30-09:00 | Integrate live OpenML run and local artifact capture. | 1:00 | 0:30 | One bounded real run produces immutable metrics/provenance. |
+| 09:00-10:00 | Write quickstart, demo, limitations, receipt view, and inventory. | 0:45 | 0:15 | A clean checkout can follow the demo path. |
+| 10:00-11:15 | Run project/bundle checks, focused harness regression, and live Omnigent loop. | 0:00 | 1:15 | Checks pass; skips/unavailable integrations are disclosed. |
+| 11:15-12:00 | Fix release blockers, rerun checks, rehearse twice, capture evidence. | 0:15 | 0:30 | Both rehearsals finish without manual state repair. |
+| **Total** |  | **7:30** | **4:30** | **12:00 internal maximum** |
 
 ## Test plan
 
-### Baseline before implementation
+### Baseline
 
-- Confirm the source repositories are clean and record their commits.
-- Run the existing focused memory/coherent-path test.
-- Run a basic import of `memory_harness` without optional dependencies.
-- Record the current local suite duration so the final regression budget is realistic.
+- Record Git commit and `uv.lock` identity.
+- Run `uv run python scripts/validate_bundle.py` and `uv run pytest`.
+- Run the focused harness checks documented in `README.md`.
+- Record durations for the final regression budget.
 
-### New unit tests
+### Unit coverage
 
-Add tests for:
+- Current schemas and any new explicit journal events
+- Canonical JSON, digests, cross-record references, and conflicting replay
+- Human objective ownership, all five required fields, digest propagation, and
+  absent/stale/mismatch/overscope/reconfirmation cases
+- Data identity/access/license/privacy/API/compute gates
+- External citations, hypothesis evidence-ID resolution, immutable
+  run/artifact support for measurements, and type-confusion rejection
+- Experiment digest, approval scope, execution gate, and budgets
+- Result immutability and updated-decision provenance
+- Parallel branch identity/timing/conflict/reconciliation and strict interval
+  overlap detection (including boundary-touch and serialized negative cases)
+- Acceleration formulas, censoring, overhead inclusion, failed-trial counting,
+  no-positive-speedup cases, and observed-versus-forecast separation
+- Deterministic learning-receipt projection, canonical digest stability,
+  task-card byte digest, and missing/conflicting-chain rejection
+- Append-only scientific-record invariants versus permitted mutable execution-
+  projection transitions
+- SQLite atomicity, replay, and restart
 
-- Every scientific record constructor and validator
-- Canonical serialization and content hashes
-- Missing and conflicting record references
-- Citation requirement enforcement
-- Fact versus hypothesis labeling
-- Experiment approval binding
-- Budget and trial-limit enforcement
-- Result immutability
-- Updated-decision provenance
-- SQLite replay, restart, and conflict behavior
-- Atlas-free imports and defaults
+Target: new unit tests complete in under two minutes.
 
-Target: all new unit tests finish in under two minutes.
+### Hermetic integration fixture
 
-### New integration tests
+1. Store the proposed `research-question/v1` and its digest.
+2. Pass cached data/access/license/compute checks.
+3. Record attributable human objective confirmation bound to that exact question
+   digest.
+4. Store two independent cited evidence packages and reconcile them.
+5. Generate `hypothesis-portfolio/v1`.
+6. Compare at least two candidates carrying that objective digest and select
+   with rationale.
+7. Obtain independent `safety-review/v1`.
+8. Bind actual human approval to the exact objective and experiment digests.
+9. Run a deterministic miniature experiment within scope.
+10. Record immutable result, independent analysis, and uncertainty.
+11. Derive the next experiment from the result.
+12. Store acceleration/scaling records and deterministically project the
+    learning receipt and its digest.
+13. Reopen SQLite and reconstruct the chain.
 
-Add one hermetic discovery-loop fixture:
+Tests must not require a live OpenML connection.
 
-1. Create a research question.
-2. Record cited fixture evidence.
-3. Generate and validate a hypothesis.
-4. Produce two experiment candidates.
-5. Select one and record approval.
-6. Run a deterministic small experiment fixture.
-7. Record analysis and uncertainty.
-8. Persist an updated decision.
-9. Reopen SQLite and reconstruct the exact chain.
+### Omnigent and harness integration
 
-Use a cached miniature dataset for this test. Do not make unit or integration success depend on a
-live OpenML connection.
-
-### Omnigent integration tests
-
-- Validate that the pinned bundle loads.
-- Confirm the PI can call each declared specialist and no undeclared specialist.
-- Confirm tool allowlists prevent unrelated mutation.
-- Confirm the runner is blocked before human approval.
-- Confirm the approved experiment returns structured output.
-- Confirm sub-agent/session identifiers are retained in the research journal.
+- Validate the pinned bundle and declared specialists.
+- Confirm agents cannot invoke undeclared agents or tools.
+- Confirm at least one pair of independent evidence invocation intervals
+  overlaps. Async configuration without overlap must fail this criterion.
+- Confirm `safety-reviewer` and `results-analyst` are separate.
+- Block execution on absent/stale/mismatched objective confirmation, overscope
+  candidates, objective changes without reconfirmation, exact-approval failure,
+  task-card digest mismatch, missing launch confirmation, or environment gate.
+- Confirm staging never launches and analysts cannot change accepted results.
 - Complete one live multi-agent discovery loop.
 
-### Existing regression tests
+### Final acceptance
 
-Run:
-
-- The existing product local test suite
-- The embedded harness test suite
-- Focused configuration, privacy, preparation, outcome, and snapshot tests
-- No live Atlas test suite
-
-If time forces a regression cut, preserve tests covering contracts, store, privacy, dispatch,
-review, and lifecycle before lower-risk documentation or visualizer tests.
-
-### Final acceptance test
-
-From a fresh runtime:
-
-1. Start Omnigent.
-2. Submit the fixed scientific question.
-3. Observe at least two specialist handoffs.
-4. Inspect cited evidence records.
-5. Observe two experiment candidates.
-6. Approve the selected experiment.
-7. Run the experiment.
-8. Inspect metrics and controls.
-9. Observe the updated decision.
-10. Reconstruct the complete chain from SQLite.
-11. Display measured acceleration and limitations.
-12. Shut down cleanly.
-
-Run this final path twice. The second run must not require hand-editing state.
+Run the documented path twice from fresh runtime state. Verify both human gates,
+objective-digest propagation, feasibility, at least one pair of temporally
+overlapping branches, appropriate support for every factual claim, two compared
+candidates, independent safety review, matched execution, immutable result,
+result-driven next experiment, deterministic receipt reconstruction, correct
+censoring/overhead rules, observed-versus-forecast separation, rubric evidence,
+and clean shutdown. The second run must require no hand-edited state.
 
 ## Definition of done
 
-The 12-hour project is complete only when all of the following are true:
-
-- Omnigent is the visible live orchestrator.
-- Multiple specialist agents exchange structured outputs.
-- The active runtime has no Atlas dependency or call.
-- The research question and primary metric were declared before the experiment.
-- At least two possible experiments were recorded.
-- The selected experiment has a retained selection rationale and human approval.
-- The experiment is reproducible from recorded code, data, environment, parameters, and seeds.
-- Every factual claim used in a decision has a citation record.
-- The result is linked to an interpretation and updated decision.
-- Uncertainty, controls, limitations, and remaining validation are explicit.
-- The acceleration metric uses a disclosed formula and matched comparison.
-- New unit/integration tests and critical existing regression tests pass.
-- One live Omnigent run and two clean demo rehearsals complete.
-- The repository contains the agent specifications, policies, experiment code, results, test
-  evidence, measured improvement, and next experiment.
+- A human confirms objective, metric, dataset, risk tolerance, and scope.
+- Data/API availability, license/privacy, identity, and compute feasibility pass.
+- Omnigent visibly orchestrates structured independent discovery branches, and
+  at least two authoritative execution intervals overlap; otherwise the
+  parallel criterion is explicitly unmet.
+- Every external fact is cited, every hypothesis resolves its evidence IDs, and
+  every measured fact resolves an immutable run/result/artifact reference;
+  conflicts and gaps remain visible.
+- Safety review and result analysis are performed by separate specialists.
+- At least two candidates are fairly compared; no selection or next experiment
+  is predetermined.
+- The objective-confirmation digest binds question, candidates, approval,
+  adapter, task card, execution binding, and result chain; absent/stale/
+  mismatched/overscope states fail closed and changed objectives require
+  reconfirmation.
+- Exact experiment approval, task-card integrity, explicit launch, and
+  environment gates fail closed.
+- The experiment is reproducible from code, data, environment, parameters,
+  seeds, controls, and artifacts.
+- Immutable results drive the decision and next experiment, with uncertainty
+  and limitations explicit.
+- Acceleration uses matched disclosed formulas, inclusive overhead and failed
+  trials, explicit censoring, and conservative no-positive-claim rules; scaling
+  analysis covers bottlenecks, parallelism, required evidence, and boundaries.
+- Significance and the enabling breakthrough are stated within the evidence.
+- Creativity is demonstrated by real parallel discovery and the deterministic,
+  digest-addressed learning receipt, not weaker controls.
+- Project/focused harness tests pass; one live run and two rehearsals complete.
+- The repository contains quickstart/demo, experiment, records/results, rubric
+  matrix, measured improvement, next experiment, and limitations.
 
 ## Stop/go rules
 
-To protect the deadline:
+- **00:15:** absent human confirmation, prepare but do not activate a proposal.
+- **00:30:** any feasibility failure blocks the run; switch to a named fallback
+  only after human confirmation.
+- **01:30:** if no branch intervals actually overlap, preserve the serial work
+  but mark the parallel-discovery criterion/rubric evidence **UNMET**; do not
+  infer parallelism from async configuration or claim parallel speedup.
+- **03:00:** extend local Python tools; do not start custom MCP work.
+- **06:00:** freeze schemas except for release-blocking integrity defects.
+- **08:15:** keep immutable local journal/JSON traces; do not add a tracing
+  service.
+- **09:00:** no new agents, primary datasets, or experiment types.
+- **10:00:** feature freeze; fix only acceptance or demo blockers.
+- **11:15:** stop refactoring.
 
-- **At 00:15:** if no domain decision exists, use the default OpenML question.
-- **At 01:30:** if managed Databricks Omnigent is not immediately available, use open-source
-  Omnigent. The brief permits either route.
-- **At 03:00:** if custom MCP work is incomplete, use local Python tools.
-- **At 06:00:** freeze schemas. No nonessential schema expansion after this point.
-- **At 08:15:** if MLflow is not working, use the local immutable metrics/trace records.
-- **At 09:00:** no new agents, datasets, or experiment types.
-- **At 10:00:** feature freeze. Only test failures and demo blockers may be changed.
-- **At 11:15:** stop refactoring. Fix only defects that prevent the acceptance run.
-
-Never cut:
-
-- Omnigent orchestration
-- Multiple purposeful agents
-- The complete discovery loop
-- Citations and evidence
-- Human approval
-- Result-driven updated decision
-- Reproducibility
-- Measured acceleration
-
-Cut first if behind:
-
-- Viewer styling
-- MLflow integration beyond minimum run logging
-- EverOS writes
-- Additional datasets
-- Custom MCP implementation
-- Additional agent roles
-- Historical Atlas code deletion
+Never cut human ownership, Omnigent orchestration, measured-overlap evidence for
+any parallel claim, type-appropriate factual support, independent review, exact
+approval, matched execution, result-driven decisions, reproducibility, honest
+acceleration, or limitations.
+Cut viewer styling, optional extra hypotheses, extra datasets, tracing, custom
+MCP, or nonessential artifact formats first.
 
 ## Primary risks and mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Omnigent version or schema drift | Agent bundle does not start | Pin the first verified version; test a minimal bundle before building features. |
-| Two orchestrators own lifecycle | Conflicting state and weak challenge compliance | Omnigent owns orchestration; existing harness components are tools and validators only. |
-| Atlas references are too widespread to remove | Schedule overrun | Remove Atlas from the active dependency/runtime path; defer historical cleanup. |
-| OpenML or source API is unavailable | Live experiment cannot start | Cache a named dataset and retain its original OpenML ID and digest. |
-| Agent output does not match schemas | Loop stalls | Validate after every handoff and allow one bounded correction turn. |
-| Experiment is nondeterministic | Result cannot be reproduced | Fix seeds, split, versions, environment, and compute limits. |
-| Large data or artifacts dirty Git worktrees | Existing review gate rejects results | Keep code/specifications in Git; store artifact references and hashes outside Git. |
-| Safety approval becomes cosmetic | Responsibility score suffers | Enforce approval in the experiment tool, not only in the prompt. |
-| Acceleration claim is inflated | Scientific rigor suffers | Use matched conditions, exact formulas, and disclose single-task limitations. |
-| Full regression takes too long | No demo time remains | Measure suite duration at start; run focused tests continuously and reserve 75 minutes for regression. |
+| Objective gate becomes a prompt default | Scientific intent is agent-owned | Require attributable confirmation of all five fields and block on absence. |
+| Dataset/API/license failure during demo | Run or artifact sharing fails | Complete the first-30-minute gate; cache a licensed fixture; predeclare only a human-confirmed fallback. |
+| Omnigent/schema drift | Bundle does not start | Pin the verified version and validate before feature work. |
+| Parallelism is cosmetic | Orchestration score suffers | Require authoritative interval overlap; serialized branches are useful evidence but leave the parallel criterion explicitly unmet. |
+| Designer reviews its own work | Independence is lost | Keep `safety-reviewer` and `results-analyst` distinct and deny cross-role tools. |
+| Handoff violates schema | Loop stalls | Validate each handoff and allow one bounded correction. |
+| Experiment is nondeterministic | Result cannot be reproduced | Fix data/split/seeds/environment/versions/budgets. |
+| Approval is cosmetic | Responsibility fails | Enforce digest/scope in code plus explicit launch and environment gates. |
+| Acceleration/breakthrough is inflated | Credibility fails | Use matched formulas, sensitivity scenarios, and single-task limits. |
+| Regression consumes demo time | No accepted evidence | Measure early, test continuously, reserve 75 minutes. |
 
 ## Submission package
 
-The final submission should contain:
+- Repository URL plus exact Git and dependency identity
+- Agent bundle, consolidated contracts, permissions, and budgets
+- Human objective confirmation and feasibility checklist
+- Schemas, journal description, and complete learning receipt
+- Experiment source, data/task identity/digest/license, and command
+- Parallel cited evidence packages, authoritative timestamps, validated overlap,
+  and reconciliation (or an explicit **UNMET** rubric entry)
+- Hypotheses; compared candidates; selection/rejection rationales; safety review
+- Exact-digest human approval, result, artifacts, updated decision, next experiment
+- Acceleration calculation and conservative/expected/optimistic scaling scenarios
+- Rubric-to-artifact matrix, tests/live-run evidence, limitations, and future work
+- Two-minute `DEMO.md` script
 
-- Repository URL and exact commit
-- Omnigent agent bundle and policies
-- Research-record schemas
-- Atlas-free storage/runtime documentation
-- Experiment source code
-- Dataset identity and digest
-- Reproducible run command
-- Cited evidence records
-- Hypotheses and both candidate experiments
-- Human approval record
-- Experiment result and artifacts
-- Updated decision and next experiment
-- Acceleration calculation
-- Test results and run evidence
-- Known limitations and required future validation
-- Two-minute demo script
+## Work after the challenge
 
-## Work immediately after the challenge
-
-These items are valuable but intentionally excluded from the 12-hour critical path:
-
-- Physically remove all legacy Atlas modules, tests, and documentation.
-- Rename Atlas-specific public configuration fields with compatibility migration.
-- Consolidate the duplicate `src/memory_harness` and `harness/memory_harness` trees.
-- Add multiple datasets and repeated trials with confidence intervals.
-- Add a durable shared backend such as Lakebase/PostgreSQL when multi-user writes are needed.
-- Add a governed artifact catalog and dataset lineage integration.
-- Expand safety policies by scientific domain.
-- Benchmark multiple models and agent topologies.
-- Turn reviewed research trajectories into evaluation datasets.
-- Add a production dashboard and long-running monitoring.
-
+- Replicate across datasets, seeds, and scientific domains with intervals.
+- Compare prospectively against expert-selected experiments.
+- Test reviewed-failure-memory and evidence-source ablations.
+- Add governed shared storage and artifact lineage only when needed.
+- Expand domain-specific safety policies and human review protocols.
+- Benchmark models, providers, and agent topologies.
+- Validate path-to-10x assumptions with measured scaling studies.
+- Build a dashboard only after the scientific workflow and claims are stable.
