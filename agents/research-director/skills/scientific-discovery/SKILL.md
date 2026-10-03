@@ -19,10 +19,12 @@ and a reproducible computational experiment.
    why one is selected.
 5. Delegate independent safety and rigor review. Do not let the experiment
    designer approve its own plan.
-6. Present the human with the complete approval packet and stop. There is no
-   experiment execution tool in this bundle.
-7. If a complete external result later arrives, delegate independent analysis
-   and produce an updated scientific decision.
+6. Use `request_experiment_approval` to bind the exact selected experiment
+   digest, present the complete approval packet, and stop.
+7. After actual human approval, stage the task. Launch only after explicit
+   digest confirmation and only through the integrated harness tool.
+8. Persist the complete result, delegate independent analysis, and produce an
+   updated scientific decision.
 
 ## Quality rules
 
@@ -35,4 +37,3 @@ and a reproducible computational experiment.
 - Never treat agent consensus as scientific validation.
 - Never claim discovery acceleration without a matched baseline and disclosed
   formula.
-

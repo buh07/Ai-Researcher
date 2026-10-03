@@ -26,7 +26,8 @@ params:
   minimum_experiment_candidates: 2
   maximum_parallel_evidence_tasks: 3
   require_human_experiment_approval: true
-  allow_experiment_execution: false
+  execution_enabled_by_default: false
+  execution_environment_gate: AI_RESEARCHER_ENABLE_EXECUTION
 
 tools:
   agents:
@@ -52,4 +53,3 @@ guardrails:
         arguments:
           max_cost_usd: 8.0
           ask_thresholds_usd: [4.0]
-

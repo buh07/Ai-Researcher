@@ -1,12 +1,11 @@
 # Research handoff contracts
 
-These JSON shapes are coordination contracts. They are intentionally documented
-before a persistent store or harness adapter exists so later integrations have a
-stable boundary.
+These JSON shapes are the contracts between Omnigent, the local research
+journal, and the integrated execution harness.
 
 Every specialist must return one JSON object and no unsupported factual claim.
-IDs may be provisional strings in the coordination-only phase; the future
-integrity layer will replace them with content-derived identities.
+The journal adds a SHA-256 `record_digest` and rejects conflicting reuse of a
+schema identity.
 
 ## `research-question/v1`
 
@@ -120,6 +119,26 @@ At least two candidates are required.
 The coordination layer cannot convert this record into an approval. Only the
 human may approve execution.
 
+## `human-approval/v1`
+
+```json
+{
+  "schema": "human-approval/v1",
+  "approval_id": "approval-...",
+  "experiment_id": "experiment-...",
+  "experiment_digest": "sha256-of-selected-experiment",
+  "approved": true,
+  "approved_by": "Human identity",
+  "approved_at": "ISO-8601 timestamp",
+  "scope": "execute-exact-experiment",
+  "constraints": []
+}
+```
+
+The digest must exactly match the value returned by
+`request_experiment_approval`. Approval authorizes only that specification;
+staging and launching remain separate operations.
+
 ## `experiment-result/v1`
 
 ```json
@@ -127,7 +146,7 @@ human may approve execution.
   "schema": "experiment-result/v1",
   "experiment_id": "experiment-...",
   "run_id": "run-...",
-  "execution_source": "external-or-future-harness",
+  "execution_source": "integrated-harness",
   "code_identity": "commit or artifact digest",
   "dataset_identity": "version and digest",
   "environment_identity": "lockfile or image digest",
@@ -142,7 +161,8 @@ human may approve execution.
 }
 ```
 
-The current coordinator consumes this record but does not produce it.
+The harness produces measurements and artifact references. It does not produce
+the scientific interpretation.
 
 ## `updated-decision/v1`
 
@@ -163,4 +183,3 @@ The current coordinator consumes this record but does not produce it.
 ```
 
 Allowed decisions are `support`, `revise`, `reject`, and `inconclusive`.
-

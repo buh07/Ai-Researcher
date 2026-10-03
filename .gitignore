@@ -6,10 +6,10 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.py[cod]
+*.egg-info/
 
 # Omnigent and research runtime state must not enter source control.
 .omnigent/
 runtime/
 artifacts/
 results/
-

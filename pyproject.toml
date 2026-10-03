@@ -1,11 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ai-researcher"
-version = "0.1.0"
+version = "0.2.0"
 description = "Omnigent coordination layer for reproducible agentic scientific discovery"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "omnigent==0.16.0",
+    "portable-orchestrator-harness",
 ]
 
 [dependency-groups]
@@ -13,10 +18,12 @@ dev = [
     "pytest>=8.4,<9",
 ]
 
-[tool.uv]
-package = false
+[tool.uv.sources]
+portable-orchestrator-harness = { path = "harness/orchestrator_harness", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
-
