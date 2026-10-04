@@ -174,10 +174,11 @@ mkdir -p "$EVIDENCE/checks"
 
 ### [ ] Task 2 — Configure Omnigent, a live provider, and the Harness
 
-**Requires:** an Omnigent-supported model credential, one authenticated
-provider CLI, OpenML network access, and an operator-approved cost budget.
-Never place credentials in Git, prompts, task cards, captured transcripts, or
-artifacts.
+**Requires:** an authenticated Codex CLI for the Codex-backed director and
+specialists, an authenticated provider CLI for the later bounded experiment
+(which may also be Codex), OpenML network access, and an operator-approved cost
+budget. Never place credentials in Git, prompts, task cards, captured
+transcripts, or artifacts.
 
 Run Omnigent setup:
 
@@ -186,10 +187,12 @@ Run Omnigent setup:
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 uv run omnigent setup
+codex login status
 )
 ```
 
-Select and validate one bounded-execution provider. This writes only the
+Select and validate the bounded-experiment execution provider. This is
+separate from the director's pinned Codex harness and writes only the
 non-secret provider/model choice to the ignored `runtime/` directory:
 
 ```bash
@@ -453,14 +456,18 @@ new implementation target and new human confirmation.
 and an attributable confirmation session. Prior conversation is not a substitute
 for the journal record.
 
-Start the research director with the required opening instruction:
+Start a fresh research-director session with the required opening instruction.
+The explicit harness and model flags match every bundled specialist and prevent
+Omnigent from selecting an unrelated configured credential. Do not resume a
+session that failed provider authentication before creating a research record:
 
 ```bash
 (
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
-uv run omnigent run agents/research-director -p \
+uv run omnigent run --harness codex --model gpt-5.6-sol \
+  agents/research-director -p \
   'Propose a bounded investigation of evidence-guided experiment selection. Stop and ask me to confirm the exact research objective, primary metric, dataset, risk tolerance, and consequential execution scope before treating the objective as active. Verify data/API access, license/privacy, identity, and compute feasibility. Prepare cited evidence, at least two experiment candidates, and an independent safety review. Stop again for exact-digest human approval before staging, and never launch without my explicit decision.'
 )
 ```

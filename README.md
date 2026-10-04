@@ -165,11 +165,16 @@ those inventory targets do not prove completion.
 
 ## Live Omnigent path, human gates, and provider launch
 
-Set up Omnigent, then launch the current bundle:
+Set up Omnigent, authenticate the Codex CLI, then launch the current bundle.
+The director and all five specialists are pinned to the Codex harness,
+`gpt-5.6-sol`, and high reasoning so they do not silently fall back to a
+different provider's expired credential:
 
 ```bash
 uv run omnigent setup
-uv run omnigent run agents/research-director
+codex login status
+uv run omnigent run --harness codex --model gpt-5.6-sol \
+  agents/research-director
 ```
 
 A suitable opening request is:

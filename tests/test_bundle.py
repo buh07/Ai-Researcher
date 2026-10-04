@@ -32,6 +32,23 @@ def test_omnigent_bundle_loads() -> None:
     )
 
 
+def test_all_research_agents_use_authenticated_codex_harness() -> None:
+    spec = load(BUNDLE)
+    agents = [spec, *spec.sub_agents]
+    assert {agent.name for agent in agents} == {
+        "research-director",
+        "evidence-researcher",
+        "hypothesis-scientist",
+        "experiment-designer",
+        "safety-reviewer",
+        "results-analyst",
+    }
+    for agent in agents:
+        assert agent.executor.config["harness"] == "codex"
+        assert agent.executor.model == "gpt-5.6-sol"
+        assert agent.executor.reasoning_effort == "high"
+
+
 def test_expected_specialists_are_present() -> None:
     expected = {
         "evidence-researcher",
