@@ -121,32 +121,56 @@ def _retire_lane(rt: Path, epoch_id: str, lane_id: str) -> None:
 
 
 def _stop_monitor(rt: Path) -> None:
-    """Set stop_requested under the monitor-record lock, then wait for STOPPED."""
+    """Request stop, then prove the recorded monitor incarnation exited.
+
+    ``health=STOPPED`` is written by the monitor immediately before its
+    process returns.  It is therefore a useful transition record, but it is
+    not process-exit proof: treating it as such lets teardown remove runtime
+    or worktree directories while that exact process is still completing
+    finalizers or buffered writes.  Bind the request to the monitor identity
+    observed under the record lock and wait until that PID-plus-creation pair
+    is gone or reused.
+    """
     record_path = monitor_record_path(rt)
     with RecordLock(record_path):
         record = read_monitor_record(rt)
         if record is None:
             return
+        pid = record.get("pid")
+        creation = record.get("creation_time")
+        if not isinstance(pid, int) or not isinstance(creation, str) or not creation:
+            raise ShutdownError(
+                SHUTDOWN_MONITOR_UNPROVEN,
+                "the monitor record has no exact process identity",
+            )
         record["stop_requested"] = True
         atomic_write_json(record_path, record)
     deadline = time.monotonic() + MONITOR_WAIT_SECONDS
     while time.monotonic() < deadline:
+        if (
+            processes.exact_identity_state(pid, creation)
+            == processes.IDENTITY_GONE_OR_REUSED
+        ):
+            return
         current = read_monitor_record(rt)
-        if current is None:
-            return
-        if current.get("health") == "STOPPED":
-            return
-        pid = current.get("pid")
-        creation = current.get("creation_time")
-        if not (isinstance(pid, int) and processes.identity_matches(pid, creation)):
-            return
+        if current is not None and (
+            current.get("pid") != pid
+            or current.get("creation_time") != creation
+        ):
+            raise ShutdownError(
+                SHUTDOWN_MONITOR_UNPROVEN,
+                "the monitor identity changed while shutdown was waiting for exit",
+            )
         time.sleep(0.5)
-    current = read_monitor_record(rt)
-    if current is not None and current.get("health") != "STOPPED":
-        raise ShutdownError(
-            SHUTDOWN_MONITOR_UNPROVEN,
-            "the monitor did not stop within the wait window",
-        )
+    if (
+        processes.exact_identity_state(pid, creation)
+        == processes.IDENTITY_GONE_OR_REUSED
+    ):
+        return
+    raise ShutdownError(
+        SHUTDOWN_MONITOR_UNPROVEN,
+        "the exact monitor process did not exit within the wait window",
+    )
 
 
 def _prune_worktrees(root_workspace: Path) -> None:

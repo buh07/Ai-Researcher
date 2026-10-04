@@ -1,9 +1,10 @@
 spec_version: 1
 name: research-director
 description: >-
-  Top-level scientific research coordinator. It delegates evidence review,
-  hypothesis generation, experiment design, safety review, and result analysis
-  while keeping execution behind an explicit human-approval boundary.
+  Top-level scientific workflow router. It preserves human ownership of the
+  objective, delegates overlapping evidence review, hypothesis generation,
+  experiment design, independent safety review, and separate result analysis,
+  and keeps execution behind exact objective and approval boundaries.
 
 instructions: AGENTS.md
 
@@ -25,6 +26,9 @@ timers: false
 params:
   minimum_experiment_candidates: 2
   maximum_parallel_evidence_tasks: 3
+  minimum_overlapping_evidence_tasks: 2
+  require_human_objective_confirmation: true
+  require_passing_feasibility_gate: true
   require_human_experiment_approval: true
   execution_enabled_by_default: false
   execution_environment_gate: AI_RESEARCHER_ENABLE_EXECUTION

@@ -263,6 +263,16 @@ class CleanupLifecycleRegressionTests(unittest.TestCase):
                 "process_identity",
                 return_value={"pid": 41, "creation_time": "created-1"},
             ),
+            # The synthetic Popen handle cannot change host PID 41's real
+            # lifecycle.  Model the stated postcondition explicitly instead
+            # of making this regression depend on whether that unrelated PID
+            # happens to exist in the test environment.
+            patch.object(launch.processes, "identity_matches", return_value=False),
+            patch.object(
+                launch.processes,
+                "exact_identity_state",
+                return_value=launch.processes.IDENTITY_GONE_OR_REUSED,
+            ),
             patch.object(launch, "update_lane", side_effect=update),
             patch.object(launch, "_read_controller_status", return_value=status),
         ):
@@ -274,6 +284,9 @@ class CleanupLifecycleRegressionTests(unittest.TestCase):
             {"pid": 41, "creation_time": "created-1"}, updates[0]["process"]
         )
         self.assertEqual({}, updates[-1]["process"])
+        child.wait.assert_called_once_with(
+            timeout=launch.RETIRE_CONTROLLER_EXIT_WAIT_SECONDS
+        )
 
     def test_retire_waits_for_controller_handle_after_exited_status(self) -> None:
         lane = {

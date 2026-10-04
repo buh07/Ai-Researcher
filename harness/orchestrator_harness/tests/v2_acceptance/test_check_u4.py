@@ -25,9 +25,7 @@ class CheckU4Tests(unittest.TestCase):
                 assert_valid_result(mutated, "lane", "run")
 
     def test_rejected_replacement_preserves_complete_prior_record_and_leaves_no_temp(self) -> None:
-        workspace = Path(__file__).resolve().parents[3] / ".agent-workspace"
-        workspace.mkdir(exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=workspace) as temporary:
+        with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "RUNTIME_STATE.json"
             prior = {"schema": "runtime-state/v1", "state": "OPEN"}
             atomic_json(path, prior)

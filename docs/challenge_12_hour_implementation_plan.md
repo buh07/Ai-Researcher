@@ -24,12 +24,18 @@ plan. “Implemented” does not mean demonstrated in a live challenge run.
 
 | Area | Current checkout | Still required for the submission |
 |---|---|---|
-| Omnigent bundle | `agents/research-director/` defines a director and five specialists and pins `omnigent==0.16.0` through the project environment. | Enforce the objective gate and parallel-discovery evidence, then capture a live provider-backed run. |
-| Scientific contracts | `src/ai_researcher/records.py` validates the eight schemas documented in `docs/HANDOFF_CONTRACTS.md`. | Add the minimum objective/feasibility, branch-reconciliation, acceleration, and learning-receipt records or events. |
-| Journal | `src/ai_researcher/journal.py` keeps scientific `records` and `record_links` append-only while `experiment_bindings` is a mutable lifecycle projection with immutable experiment/approval identity. | Retain human-objective and branch provenance and reconstruct the expanded receipt without misrepresenting lifecycle status as an immutable record. |
-| Approval/execution boundary | Exact experiment-digest approval, separate staging/launch, and the `AI_RESEARCHER_ENABLE_EXECUTION` gate are implemented. | Add the separate human objective gate and prove all gates in the live path. |
-| Harness | `harness/` is integrated through `src/ai_researcher/harness_adapter.py`. | Configure a provider locally and capture one bounded real run; local credentials/configuration remain uncommitted. |
-| Scientific demonstration | Agent and integration fixtures exist. | Implement/run the matched OpenML experiment, acceleration/scaling analysis, result-driven next decision, `DEMO.md`, and rubric evidence. |
+| Omnigent bundle | `agents/research-director/` defines a director and five specialists, pins `omnigent==0.16.0`, enforces operator-only authority, and verifies provider-owned session exports for parallel evidence. | Capture a live provider-backed session with attributable identities and real overlap. |
+| Scientific contracts | `src/ai_researcher/records.py` validates thirteen immutable record schemas documented in `docs/HANDOFF_CONTRACTS.md`; the learning receipt is a deterministic projection rather than a fourteenth mutable record. | Populate the contracts with real run evidence; do not count fixture records as challenge evidence. |
+| Journal | `src/ai_researcher/journal.py` keeps scientific `records` and `record_links` append-only, validates cross-record identity/provenance, proves strict parallel overlap, reconstructs the receipt, and keeps `experiment_bindings` as a mutable lifecycle projection. | Retain and export the real journal/artifacts for the submission. Legacy incomplete authority remains read-only and fails closed for execution. |
+| Approval/execution boundary | Operator-only objective/approval recording, passing preflight, exact objective/experiment/task-card binding, separate staging/launch, explicit provider options, and `AI_RESEARCHER_ENABLE_EXECUTION` are implemented. | Obtain real human confirmations and exercise every gate in the live path. |
+| Harness | `HarnessAdapter` implements launch, status/wait, result-envelope conversion, explicit completion review, Harness-owned terminal-evidence readback, verified ingestion, force-stop, retirement, and shutdown. | Configure an external provider locally and retain one accepted bounded run; credentials/configuration remain uncommitted. |
+| Scientific demonstration | Task 59/dataset 61 live retrieval, the CC0 synthetic fixture, matched baseline/guided runner, end-to-end telemetry input, acceleration/scaling analysis, receipt/reporting, `DEMO.md`, limitations, and rubric inventory are implemented and tested. | A live OpenML result, final result-driven decision/receipt, rubric evidence, and two clean live rehearsals are still externally required. |
+
+This is an **implementation baseline**, not a claim of completed challenge
+evidence. The checkout intentionally contains no human authority record,
+provider credential, live Omnigent trace, measured live overlap, accepted
+OpenML result, or rehearsal capture. Those items cannot be manufactured by a
+test or committed fixture.
 
 The **12-hour window is our internal delivery budget**, not the challenge's
 published time limit. It allocates:
@@ -247,13 +253,13 @@ Authority is deliberately split:
 | Actor or boundary | Non-overlapping decision or authority | Actual current tools/interactions | Required inputs | Required output |
 |---|---|---|---|---|
 | Human scientist | Research objective, primary metric, dataset, risk tolerance, execution scope, and final consequential approval | Objective-confirmation interaction and the exact digest-bound approval/launch interactions; no direct journal or measurement mutation | Objective packet, feasibility evidence, candidate comparison, safety review, exact experiment digest | Attributable objective confirmation, approval/rejection with constraints, and explicit launch decision |
-| `research-director` | Workflow routing, gate sequence, and preservation of disagreements; **no** independent objective, experiment-selection, safety, approval, or result-interpretation authority | Five declared sub-agents plus exactly `record_research_record`, `request_experiment_approval`, `stage_approved_experiment`, `launch_approved_experiment`, `get_experiment_status`, and `record_experiment_result` | Human-confirmed objective/scope and exact upstream records/budgets | Ordered handoffs, persisted specialist records, exact approval question/digests, status, and faithful presentation of the analyst's `updated-decision/v1` |
-| `evidence-researcher` | Whether each narrow external claim is supported and what source conflict/uncertainty remains | Built-in `web_search` only; no research-runtime, journal, execution, or approval tool | `question_id`, bounded evidence question, access constraints | `evidence-package/v1` with claim-level external citations, support, conflicts, and gaps |
+| `research-director` | Workflow routing, gate sequence, and preservation of disagreements; **no** independent objective, experiment-selection, safety, approval, or result-interpretation authority | Five declared sub-agents plus the single `research_runtime` bundle for records/receipt, trusted branch events, preflight, approval/stage/launch, status/wait/review/evidence/ingestion, result conversion, force-stop/retire/shutdown | Human-confirmed objective/scope and exact upstream records/budgets | Ordered handoffs, persisted specialist records, exact approval question/digests, lifecycle status, and faithful presentation of the analyst's `updated-decision/v1` |
+| `evidence-researcher` | Whether each narrow external claim is supported and what source conflict/uncertainty remains | Built-in `web_search` plus narrow provider-execution start/end marker tools; no research-runtime, journal, experiment execution, or approval tool | `question_id`, `branch_id`, bounded evidence question, access constraints | `evidence-package/v1` with claim-level external citations, support, conflicts, and gaps |
 | `hypothesis-scientist` | Falsifiable hypothesis portfolio, predictions, falsifiers, and competing explanations | No configured tools; operates only on supplied records | Fixed question and supplied evidence IDs | `hypothesis-portfolio/v1` with competing explanations and uncertainty |
 | `experiment-designer` | Candidate designs, ranking, and exactly one selection recommendation under declared criteria | No configured tools; operates only on supplied records | Confirmed scope/digest, routed hypothesis, evidence, data/compute envelope | `experiment-candidates/v1` with at least two candidates, selected ID, selection rationale, and rejected-candidate rationales |
 | `safety-reviewer` | Independent `APPROVAL_REQUIRED`, `REVISE`, or `REJECT` verdict and required controls | No configured tools; operates only on supplied records | Selected candidate and objective digests, confirmed risk/scope, budgets, controls | `safety-review/v1` with risks, controls, prohibited actions, limitations, and exact approval question |
-| `results-analyst` | Scientific interpretation (`support`, `revise`, `reject`, or `inconclusive`) and next-experiment recommendation | No configured tools; operates only on supplied immutable records | Accepted `experiment-result/v1`, original hypothesis/specification, controls, evidence | `updated-decision/v1` with rationale, evidence/result references, uncertainty, and result-driven next experiment |
-| Execution harness/tool boundary | No scientific decision; execution of only the authorized task and reporting of observations | No agent tools or shell route; reachable only through the director's six research-runtime tools and `HarnessAdapter` | Confirmed objective digest/scope, selected-experiment digest, matching approval, safety controls, task-card digest, environment gate, and budgets | Mutable lifecycle projection plus immutable run/result record, metrics, logs, artifact digests, and resource use |
+| `results-analyst` | Scientific interpretation (`support`, `revise`, `reject`, or `inconclusive`) and next-experiment recommendation | No configured tools; operates only on supplied immutable records; cannot author timing | Accepted `experiment-result/v1`, Harness acceptance evidence, original hypothesis/specification, controls, evidence | `updated-decision/v1` with rationale, evidence/result references, uncertainty, and result-driven next experiment; the journal adds the timing artifact |
+| Execution harness/tool boundary | No scientific decision; execution of only the authorized task and reporting of observations | No direct agent shell route; reachable through the director's declared lifecycle tools and `HarnessAdapter` | Confirmed objective digest/scope, selected-experiment digest, matching approval, safety controls, task-card digest, environment gate, explicit provider/model/options, and budgets | Mutable lifecycle projection plus reviewed immutable result, terminal evidence, metrics, logs, artifact digests, and resource use |
 
 The harness is not a specialist agent. It executes an exact approved task and
 returns measurements; it makes no scientific judgment. The same agent may not
@@ -267,6 +273,10 @@ Subject to explicit human confirmation, propose this scoped question:
 > evidence-guided experiment selection reach a predeclared validation score
 > with fewer model-training trials than a fixed baseline search?
 
+The implemented runner pins OpenML task 59, dataset 61, version 1, with a
+content digest confirmed before a live run. The checked-in task-59-shaped CC0
+synthetic proxy is tests-only and is never evidence about the live dataset.
+
 Why it is a useful proposal:
 
 - It is likely to fit the internal delivery and compute budgets.
@@ -278,8 +288,9 @@ Why it is a useful proposal:
 
 Proposed measurements:
 
-- Completed trials to the predeclared target (**primary**)
-- Best held-out score under a fixed trial budget
+- `trials_to_threshold`: completed trials to the predeclared target (**primary**)
+- Held-out `accuracy` under a fixed trial budget (**secondary quality and
+  non-inferiority guard**)
 - Wall-clock and compute time
 - Agent/tool cost or token usage where available
 - Human interventions
@@ -307,22 +318,32 @@ merely list async-capable agents:
 
 1. Split evidence work into at least two bounded questions, such as
    dataset/metric validity and experiment-selection evidence.
-2. Dispatch them without sharing intermediate conclusions and capture
-   authoritative `started_at` and `completed_at` timestamps for each invocation.
+2. Call `start_parallel_branch` before each dispatch, dispatch them without
+   sharing intermediate conclusions, and call `finish_parallel_branch` only
+   after the corresponding specialist returns. This single-use runtime token is
+   only a local dispatch marker. Give `record_research_record` the actual
+   `provider_session_id`; it independently exports that Omnigent session. Each
+   evidence child must call its narrow start marker before substantive work and
+   its matching end marker afterward, with at least one completed `web_search`
+   call/result strictly between them and no substantive tool calls outside. Only the completed marker-result item
+   timestamps in the provider export supply the authoritative interval. Request
+   and response persistence, mutable session metadata, and caller timestamps never do.
 3. Count branches A and B as parallel only when their half-open execution
    intervals overlap: `A.started_at < B.completed_at` **and**
    `B.started_at < A.completed_at`. Queue time or two `async: true` declarations
    are not proof of overlap.
-4. Preserve every `evidence-package/v1`, agent/session identity, timing,
-   sources, gaps, and disagreements.
+4. Require completed, distinct invocation IDs and producer sessions, distinct
+   nonempty cited evidence packages, and preserve every agent/session identity,
+   source, gap, and disagreement.
 5. Have the director preserve and route conflicts explicitly rather than averaging or
    hiding them.
 6. If time allows, evaluate two hypotheses independently within the same fixed
    evidence and budget envelope.
 
 Acceptance requires visible handoffs, at least one pair of overlapping
-intervals, and a journal reconstruction showing both branches and their
-reconciliation. If the runtime serializes all branches, report useful
+intervals, and a reconciliation that cites evidence from every branch. Shared
+evidence, same-session branches, incomplete invocations, caller timestamps, or
+queue time cannot produce `MET`. If the runtime serializes all branches, report useful
 independent work but mark the parallel-discovery acceptance criterion and its
 rubric evidence **UNMET**. Do not substitute a disclosure for compliance or
 claim parallel speedup.
@@ -400,7 +421,8 @@ agents/research-director/
 - Require exact-digest human approval and an explicit launch action.
 - Deny undeclared shell, network, approval, measurement-mutation, and launch
   paths where supported.
-- Journal director/specialist identities and authoritative invocation timing;
+- Journal director/specialist identities and independently verified Omnigent
+  provider-session receipts with exact in-session execution-marker timing;
   assert parallelism only after interval-overlap validation.
 
 **Exit gate:** bundle validation passes; multiple structured handoffs occur;
@@ -409,32 +431,30 @@ matching objective digest, experiment approval, explicit launch confirmation,
 and the environment gate. A parallel claim additionally requires measured
 overlap.
 
-### 3. Use and extend current scientific record contracts
+### 3. Use the implemented scientific record contracts
 
 The canonical implementation is `src/ai_researcher/records.py`, documented by
-`docs/HANDOFF_CONTRACTS.md`. Preserve the current schema names:
+`docs/HANDOFF_CONTRACTS.md`. The current schema names are:
 
 1. `research-question/v1`
-2. `evidence-package/v1`
-3. `hypothesis-portfolio/v1`
-4. `experiment-candidates/v1`
-5. `safety-review/v1`
-6. `human-approval/v1`
-7. `experiment-result/v1`
-8. `updated-decision/v1`
+2. `objective-confirmation/v1`
+3. `feasibility-check/v1`
+4. `evidence-package/v1`
+5. `parallel-branch/v1`
+6. `branch-reconciliation/v1`
+7. `hypothesis-portfolio/v1`
+8. `experiment-candidates/v1`
+9. `safety-review/v1`
+10. `human-approval/v1`
+11. `experiment-result/v1`
+12. `updated-decision/v1`
+13. `acceleration-summary/v1`
 
-Use these current contracts for the question/metric/constraints; cited evidence,
+Use these contracts for the question/metric/constraints; human authority and
+feasibility; trusted parallel work/reconciliation; cited evidence,
 conflicts, and gaps; falsifiable hypotheses; multiple candidates and selection
 rationale; independent safety review; exact-digest execution approval; immutable
 result identity/metrics/artifacts/limitations; and result-driven next decision.
-
-Add the smallest explicit record types or journal events required for:
-
-- Objective confirmation of all five human-owned fields, the exact question
-  digest, and the downstream binding rules above
-- Data/access/license/privacy/API/compute feasibility
-- Parallel branch start/completion and reconciliation
-- Acceleration summary and path-to-10x scenarios
 
 All records use canonical JSON and SHA-256 identities. Exact referenced IDs and
 digests must validate. Malformed, unsupported, cross-question, stale,
@@ -513,27 +533,43 @@ different digest, never silently overwritten or presented as final.
 
 ### 5. Keep one narrow tool surface
 
-The existing tool module is
-`agents/research-director/tools/python/research_runtime.py`, with these current
-public tools:
+The sole director-facing tool module is
+`agents/research-director/tools/python/research_runtime.py`. It exposes:
 
-- `record_research_record`
-- `request_experiment_approval`
-- `stage_approved_experiment`
-- `launch_approved_experiment`
-- `get_experiment_status`
-- `record_experiment_result`
+- records and receipt: `record_research_record`, `read_research_chain`, and
+  `get_learning_receipt`
+- branch dispatch markers: `start_parallel_branch` and `finish_parallel_branch`;
+  `record_research_record` independently exports the supplied
+  `provider_session_id` and accepts only provider-owned completed start/end
+  marker-result item timing as parallel evidence
+- gates: `preflight_confirmed_objective`, `request_experiment_approval`,
+  `stage_approved_experiment`, and `launch_approved_experiment`
+- execution lifecycle: `get_experiment_status`,
+  `get_harness_experiment_status`, `wait_for_experiment`,
+  `review_experiment_completion`, `read_experiment_terminal_evidence`,
+  `build_harness_result`, `ingest_harness_experiment_result`,
+  `record_experiment_result`, `force_stop_experiment`,
+  `read_experiment_cancellation_evidence`, `retire_experiment`, and
+  `shutdown_research_harness`
 
-Extend it only as needed to record/read objective confirmation, feasibility,
-parallel work, and the learning receipt. Do not add a second shell or custom MCP
-execution path.
+The evidence-researcher has one separate, least-privileged local module,
+`execution_marker.py`, exposing only `mark_provider_execution_start` and
+`mark_provider_execution_end`. It cannot read or write the journal, approve or
+launch execution, or provide timing directly; the verifier trusts only the
+corresponding completed call/result items in the independently exported
+Omnigent session.
+
+Human objective and approval records are deliberately unavailable to agents;
+an attributable operator uses `scripts/record_human_authority.py`. Do not add a
+second shell or custom MCP execution path.
 
 Update the existing approval/stage/launch signatures or their validated payloads
 so the objective-confirmation digest is mandatory. The adapter must reject an
 absent/stale/mismatched digest, an overscope candidate, a task-card digest that
 does not match the staged file, or a chain invalidated by reconfirmation.
 Execution must require exact objective and experiment authority plus the
-environment gate; enforce data, trial, time, compute, network, and cost scope;
+environment gate and explicit provider/model/options; enforce data, metric,
+trial, time, compute, network, mutation, risk, and cost scope;
 run matched methods; and capture task/command identity, code commit,
 environment/lock, package versions, seeds, runtime, metrics, logs, and artifact
 digests. Agents must not be able to rewrite returned measurements.
@@ -573,19 +609,49 @@ hypotheses, limitations, and unresolved uncertainty.
 Use a small stable OpenML task that passes the initial gate and downloads
 quickly, with a license-compatible miniature test fixture.
 
-- Predeclare primary metric and threshold.
+- Predeclare `trials_to_threshold` as the primary endpoint, `accuracy` as the
+  secondary quality/non-inferiority metric, and the accuracy threshold.
 - Fix data version/digest, split, and seeds before execution.
 - Compare one inexpensive baseline and one evidence-guided policy under the
   same maximum trials and compute.
 - Retain failed, cancelled, and timed-out trials.
-- Calculate trials to threshold, best metric, wall/compute time, interventions,
-  cost where available, and decision-update latency.
+- Enforce each arm's wall-time limit as a real execution deadline: timed-out
+  evaluator work must be terminated and reaped before control returns, rather
+  than merely relabeled after a synchronous call finishes. If forced
+  termination or a fatal exit prevents an exact final CPU measurement, record
+  compute as unavailable and block acceleration claims rather than reporting a
+  partial or zero value as measured.
+- Calculate trials to threshold, best accuracy, wall/compute time,
+  interventions, and cost/token use where available in the immutable result.
+  Calculate source-backed decision-update latency only after acceptance and
+  independent analysis.
 - Require `results-analyst` to recommend `support`, `revise`, `reject`, or
   `inconclusive` without changing measurements.
 - Journal the proposed updated decision and a next experiment justified by the
   actual result and remaining uncertainty—not by a preselected fallback.
 
 A valid negative or inconclusive result is preferable to an inflated positive.
+
+The production lifecycle continues after launch: wait for the exact lane,
+convert the matched outcome to `experiment-result/v1` with source-digested arm
+workflow telemetry but no future decision latency, embed it unchanged in the
+Harness `RESULT.json`, explicitly review/accept or reject completion, reread
+Harness-owned terminal evidence, and rehash and ingest every artifact. Preserve
+the Harness acceptance timestamp/hash in the durable execution binding. Only
+then may the independent analyst produce `updated-decision/v1`; at journal
+insertion, trusted code adds and hashes an embedded timing artifact spanning
+Harness acceptance to decision completion. Derive `acceleration-summary/v1`
+from that immutable decision and bind both decision and result digests without
+rewriting the result. Then retire or force-stop and explicitly shut down. A
+force-stop is an alternate terminal cleanup path: it must prove exact-run
+retirement and retain a hash-bound cancellation receipt, must not pretend that
+cancellation is an accepted scientific result, and must not mark the run
+cancelled when cleanup fails. Exact cleanup authority survives objective
+supersession and covers an ambiguous durable `LAUNCHING` run, but may never be
+used to adopt results or authorize new execution. Codex launch requires
+`reasoning_effort` and `service_tier`, Claude Code requires `effort`, and Qwen
+Code accepts an empty provider-options object. No provider has an implicit
+configuration.
 
 ### 8. Measure acceleration and analyze a path to 10x
 
@@ -643,6 +709,13 @@ censored comparison into a point estimate. Then add a scaling analysis covering:
 Include conservative, expected, and optimistic sensitivity scenarios. Label
 these forecasts separately from observed results.
 
+The implementation accepts end-to-end workflow timing only when both arms have
+structured observations for retrieval, planning, approval, preflight, and
+agent/tool work plus a SHA-256 measurement-source digest. It measures candidate
+compute separately with a process clock. Missing intervention, cost, or token
+observations remain `null`, not zero. Missing arm overhead changes timing scope
+to `model-evaluation-only` and blocks an overall discovery-speed claim.
+
 ### 9. Deliver creative, responsible demo artifacts
 
 Use a terminal-first view rather than a new UI:
@@ -689,7 +762,9 @@ Required repository artifacts:
 
 - Record Git commit and `uv.lock` identity.
 - Run `uv run python scripts/validate_bundle.py` and `uv run pytest`.
-- Run the focused harness checks documented in `README.md`.
+- Run the complete imported Harness suite from `harness/` with
+  `PYTHONPATH=. ../.venv/bin/python -m unittest discover -s
+  orchestrator_harness/tests -p 'test_*.py'`.
 - Record durations for the final regression budget.
 
 ### Unit coverage
@@ -702,11 +777,17 @@ Required repository artifacts:
 - External citations, hypothesis evidence-ID resolution, immutable
   run/artifact support for measurements, and type-confusion rejection
 - Experiment digest, approval scope, execution gate, and budgets
-- Result immutability and updated-decision provenance
+- Provider-specific required launch options; status/wait, explicit completion
+  review, Harness-owned evidence readback, result conversion/ingestion,
+  force-stop, retirement, and exact-confirmation shutdown
+- Result-before-analysis ordering, result immutability, journal-authored
+  decision timing, acceptance-hash provenance, and updated-decision binding
 - Parallel branch identity/timing/conflict/reconciliation and strict interval
   overlap detection (including boundary-touch and serialized negative cases)
 - Acceleration formulas, censoring, overhead inclusion, failed-trial counting,
-  no-positive-speedup cases, and observed-versus-forecast separation
+  separate wall/CPU timing, source-backed decision latency, unavailable
+  cost/token/intervention handling, no-positive-speedup cases, and
+  observed-versus-forecast separation
 - Deterministic learning-receipt projection, canonical digest stability,
   task-card byte digest, and missing/conflicting-chain rejection
 - Append-only scientific-record invariants versus permitted mutable execution-
@@ -728,9 +809,10 @@ Target: new unit tests complete in under two minutes.
 7. Obtain independent `safety-review/v1`.
 8. Bind actual human approval to the exact objective and experiment digests.
 9. Run a deterministic miniature experiment within scope.
-10. Record immutable result, independent analysis, and uncertainty.
-11. Derive the next experiment from the result.
-12. Store acceleration/scaling records and deterministically project the
+10. Accept and ingest the immutable result without decision timing.
+11. Independently analyze it, derive the next experiment, and journal the
+    decision with a journal-authored timing artifact bound to Harness acceptance.
+12. Store result-and-decision-bound acceleration/scaling records and deterministically project the
     learning receipt and its digest.
 13. Reopen SQLite and reconstruct the chain.
 
@@ -759,7 +841,22 @@ result-driven next experiment, deterministic receipt reconstruction, correct
 censoring/overhead rules, observed-versus-forecast separation, rubric evidence,
 and clean shutdown. The second run must require no hand-edited state.
 
-## Definition of done
+## Acceptance status: implementation versus live evidence
+
+The repository implementation now covers the contracts, authority/preflight
+gates, trusted parallel proof, matched fixture/live experiment API,
+end-to-end-telemetry inputs, primary/quality endpoint separation, provider
+option validation, full Harness lifecycle, immutable result/acceleration
+consistency, learning receipt, report, and tests specified above. A clean
+checkout can validate those software paths with the commands in the test plan.
+
+The **challenge-evidence definition of done below is not yet satisfied by this
+repository alone**. It requires a real human, provider credentials, live
+Omnigent/OpenML execution, exported ignored artifacts, and two rehearsals. No
+fixture, mock, unit test, empty renderer input, or documentation checkbox may
+stand in for that evidence.
+
+## Challenge-evidence definition of done
 
 - A human confirms objective, metric, dataset, risk tolerance, and scope.
 - Data/API availability, license/privacy, identity, and compute feasibility pass.
@@ -788,7 +885,8 @@ and clean shutdown. The second run must require no hand-edited state.
 - Significance and the enabling breakthrough are stated within the evidence.
 - Creativity is demonstrated by real parallel discovery and the deterministic,
   digest-addressed learning receipt, not weaker controls.
-- Project/focused harness tests pass; one live run and two rehearsals complete.
+- Project and complete Harness tests pass; one live run and two rehearsals
+  complete.
 - The repository contains quickstart/demo, experiment, records/results, rubric
   matrix, measured improvement, next experiment, and limitations.
 

@@ -1,0 +1,36 @@
+{
+  "byte_count": 1196,
+  "feature_count": 4,
+  "file": "task_59_proxy.csv",
+  "fixture_copyright": "Dedicated to the public domain by the AI Researcher project contributors.",
+  "fixture_id": "synthetic-proxy-openml-task-59-v1",
+  "generation_note": "Hand-authored synthetic values preserve only the four-numeric-feature, three-class shape required by hermetic tests. They are not scientific evidence and cannot support claims about OpenML task 59.",
+  "license_spdx": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "license_verification": {
+    "evidence": "The fixture is original synthetic data dedicated under CC0-1.0; no OpenML observations were copied.",
+    "status": "VERIFIED",
+    "verified_at": "2026-10-03T00:00:00Z",
+    "verified_by": "AI Researcher fixture maintainer"
+  },
+  "mode": "synthetic-hermetic-proxy",
+  "openml_dataset_id": 61,
+  "openml_dataset_metadata_url": "https://www.openml.org/api/v1/json/data/61",
+  "openml_dataset_version": 1,
+  "openml_live_data_url": "https://openml.org/data/v1/download/61/iris.arff",
+  "openml_task_id": 59,
+  "openml_task_url": "https://www.openml.org/api/v1/json/task/59",
+  "privacy_attestation": {
+    "attested_at": "2026-10-03T00:00:00Z",
+    "attested_by": "AI Researcher fixture maintainer",
+    "evidence": "The hand-authored synthetic flower measurements contain no people, identifiers, or personal data.",
+    "status": "VERIFIED"
+  },
+  "requires_authentication": false,
+  "row_count": 45,
+  "schema": "hermetic-dataset-fixture/v1",
+  "scientific_use": "tests-only",
+  "sha256": "e47234e8ba0a4c512a49e895747d8f51f9d8e9d4d75f405070e9d279589063a4",
+  "target": "class",
+  "upstream_dataset_license_note": "OpenML dataset 61 metadata declares licence Public; this synthetic fixture contains no copied upstream observations."
+}

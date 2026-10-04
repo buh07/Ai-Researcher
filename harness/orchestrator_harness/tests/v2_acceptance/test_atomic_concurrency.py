@@ -13,9 +13,7 @@ class AtomicAndConcurrencyOracleTests(unittest.TestCase):
     """Independent CHECK-U3/U4 race and crash-window oracles; never candidate helpers."""
 
     def test_crash_before_replace_preserves_prior_complete_json(self) -> None:
-        root = Path(__file__).resolve().parents[3] / ".agent-workspace"
-        root.mkdir(exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=root) as directory:
+        with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "record.json"
             prior = {"generation": 1, "complete": True}
             atomic_json(path, prior)

@@ -138,8 +138,14 @@ class CleanupDecisionTests(unittest.TestCase):
 
 
 class ControllerLeaseTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.worktree = Path(self.temporary.name) / "worktree"
+        (self.worktree / ".agent-workspace").mkdir(parents=True)
+
     def test_lease_busy_is_terminal_clean_and_restores_prepared(self) -> None:
-        lane = {"lane_id": "lane-1", "run_id": "run-1", "worktree_path": "worktree", "controller_status_path": "status", "controller_events_path": "events"}
+        lane = {"lane_id": "lane-1", "run_id": "run-1", "worktree_path": str(self.worktree), "controller_status_path": "status", "controller_events_path": "events"}
         invocation = {"lane_id": "lane-1", "run_id": "run-1", "provider": {"id": "codex"}, "exclusive_resources": ["shared"]}
         bind_invocation(lane, invocation)
         updates: list[dict[str, object]] = []
@@ -168,7 +174,7 @@ class ControllerLeaseTests(unittest.TestCase):
         self.assertTrue(terminal["cleanup_proven"])
 
     def test_provider_not_created_releases_only_current_run_lease(self) -> None:
-        lane = {"lane_id": "lane-1", "run_id": "run-1", "worktree_path": "worktree", "controller_status_path": "status", "controller_events_path": "events"}
+        lane = {"lane_id": "lane-1", "run_id": "run-1", "worktree_path": str(self.worktree), "controller_status_path": "status", "controller_events_path": "events"}
         invocation = {"lane_id": "lane-1", "run_id": "run-1", "provider": {"id": "codex"}, "exclusive_resources": ["shared"]}
         bind_invocation(lane, invocation)
         with (

@@ -453,7 +453,7 @@ class LaneQueueAcknowledgeTests(unittest.TestCase):
         spec.loader.exec_module(module)
 
         event_id = "event-ack-010"
-        temp_root = REPOSITORY_ROOT / ".agent-workspace" / "test-temp"
+        temp_root = Path(tempfile.gettempdir()) / "orchestrator-harness-tests"
         temp_root.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=temp_root) as raw:
             workspace = Path(raw)

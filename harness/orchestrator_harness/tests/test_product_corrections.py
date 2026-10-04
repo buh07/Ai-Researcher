@@ -17,7 +17,7 @@ from orchestrator_harness.models import ProcessInfo, ProcessQuery, ProcessSnapsh
 from orchestrator_harness.records import atomic_write_json, read_record
 
 
-TEST_TEMP_ROOT = Path(__file__).resolve().parents[2] / ".agent-workspace" / "test-temp"
+TEST_TEMP_ROOT = Path(tempfile.gettempdir()) / "orchestrator-harness-tests"
 
 
 class ProcessIdentityCorrectionTests(unittest.TestCase):

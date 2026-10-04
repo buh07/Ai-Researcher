@@ -1,15 +1,50 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from orchestrator_harness import operator_launch, setup
+from orchestrator_harness import operator_launch, processes, setup, shutdown
 from orchestrator_harness.config import HarnessConfig, ResourceManifest
 from orchestrator_harness.core import iso_utc
 from orchestrator_harness.records import atomic_write_json
+
+
+_STOPPED_THEN_LATE_WRITE = r"""
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+record_path = Path(sys.argv[1])
+late_path = Path(sys.argv[2])
+deadline = time.monotonic() + 10.0
+while time.monotonic() < deadline:
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError):
+        time.sleep(0.02)
+        continue
+    if record.get("stop_requested") is True:
+        record["health"] = "STOPPED"
+        pending = record_path.with_name(record_path.name + ".child.tmp")
+        pending.write_text(json.dumps(record), encoding="utf-8")
+        os.replace(pending, record_path)
+        # Model post-status process teardown.  A caller that treats the
+        # status write as process exit can delete the worktree while this
+        # exact monitor incarnation still owns a delayed write.
+        time.sleep(1.25)
+        late_path.parent.mkdir(parents=True, exist_ok=True)
+        late_path.write_text("monitor-exited\n", encoding="utf-8")
+        raise SystemExit(0)
+    time.sleep(0.02)
+raise SystemExit(2)
+""".strip()
 
 
 class MonitorRecoveryTests(unittest.TestCase):
@@ -147,6 +182,50 @@ class MonitorRecoveryTests(unittest.TestCase):
             result = self.call()
         self.assertEqual(result["code"], "MONITOR_RUNTIME_NOT_OPEN")
         spawn.assert_not_called()
+
+    def test_shutdown_waits_for_exact_monitor_exit_after_stopped_status(self) -> None:
+        """STOPPED is a status transition, not proof the writer has exited."""
+
+        late_path = self.workspace / ".agent-workspace" / "late-monitor-write.txt"
+        child = processes.spawn_detached(
+            [
+                sys.executable,
+                "-c",
+                _STOPPED_THEN_LATE_WRITE,
+                str(setup.monitor_record_path(self.config.runtime_root)),
+                str(late_path),
+            ],
+            cwd=str(self.root),
+        )
+        identity = processes.process_identity(child.pid)
+        self.assertIsNotNone(identity)
+        assert identity is not None
+        self.record(
+            pid=identity["pid"],
+            creation_time=identity["creation_time"],
+        )
+        try:
+            with patch.object(shutdown, "MONITOR_WAIT_SECONDS", 4.0):
+                shutdown._stop_monitor(self.config.runtime_root)
+            self.assertIsNotNone(
+                child.poll(),
+                "shutdown returned while the exact monitor process was still live",
+            )
+            self.assertTrue(
+                late_path.is_file(),
+                "shutdown must wait through the monitor's post-status teardown",
+            )
+        finally:
+            if processes.identity_matches(
+                identity["pid"], identity["creation_time"]
+            ):
+                processes.terminate_process(
+                    identity["pid"], identity["creation_time"], force=True
+                )
+            try:
+                child.wait(timeout=5.0)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
 
 
 if __name__ == "__main__":
