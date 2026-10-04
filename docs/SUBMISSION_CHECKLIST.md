@@ -25,7 +25,9 @@ present implementation artifact is not proof of a live scientific outcome.
 - [x] Unit/integration test sources: `tests/`
 - [x] Two-minute operator script: `DEMO.md`
 - [x] Claim boundaries and pending validation: `docs/LIMITATIONS.md`
-- [ ] Captured final check output, durations, Git commit, lock digest, and skips
+- [x] Captured final check output, durations, Git commit, lock digest, and skips:
+  external bundle `Ai-Researcher-submission-evidence/checks/` for commit
+  `8a814084041a3a3051bcb751552474c8242f623b`
 - [ ] Two clean rehearsals from fresh runtime state without manual repair
 
 Clean-checkout software checks (do not substitute these for live evidence):
@@ -34,12 +36,21 @@ Clean-checkout software checks (do not substitute these for live evidence):
 uv sync --frozen
 uv run python scripts/validate_bundle.py
 uv run pytest
+TMPROOT=$(mktemp -d /tmp/ai-researcher-harness-tests.XXXXXX)
 (
+  trap 'rm -rf "$TMPROOT"' EXIT
   cd harness
-  PYTHONPATH=. ../.venv/bin/python -m unittest discover \
-    -s orchestrator_harness/tests -p 'test_*.py'
+  TMPDIR="$TMPROOT" TEMP="$TMPROOT" TMP="$TMPROOT" \
+    PYTHONPATH=. ../.venv/bin/python -m unittest discover \
+      -s orchestrator_harness/tests -p 'test_*.py'
 )
 ```
+
+Use the node-local temporary directory exactly as shown. Shared NFS temporary
+storage can report a delayed-delete `Directory not empty`/`.nfs*` error during
+`TemporaryDirectory` cleanup even when every product assertion passed. The
+node-local path removes that filesystem race without skipping or changing a
+test.
 
 ## Objective and feasibility
 

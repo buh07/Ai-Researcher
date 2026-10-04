@@ -13,10 +13,13 @@ From a clean checkout:
 uv sync --frozen
 uv run python scripts/validate_bundle.py
 uv run pytest
+TMPROOT=$(mktemp -d /tmp/ai-researcher-harness-tests.XXXXXX)
 (
+  trap 'rm -rf "$TMPROOT"' EXIT
   cd harness
-  PYTHONPATH=. ../.venv/bin/python -m unittest discover \
-    -s orchestrator_harness/tests -p 'test_*.py'
+  TMPDIR="$TMPROOT" TEMP="$TMPROOT" TMP="$TMPROOT" \
+    PYTHONPATH=. ../.venv/bin/python -m unittest discover \
+      -s orchestrator_harness/tests -p 'test_*.py'
 )
 uv run python scripts/render_research_report.py <CHAIN> \
   --rubric-output <RUBRIC>

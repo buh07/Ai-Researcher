@@ -762,9 +762,12 @@ Required repository artifacts:
 
 - Record Git commit and `uv.lock` identity.
 - Run `uv run python scripts/validate_bundle.py` and `uv run pytest`.
-- Run the complete imported Harness suite from `harness/` with
-  `PYTHONPATH=. ../.venv/bin/python -m unittest discover -s
-  orchestrator_harness/tests -p 'test_*.py'`.
+- Run the complete imported Harness suite from `harness/` with `TMPDIR`, `TEMP`,
+  and `TMP` bound to one `mktemp -d /tmp/ai-researcher-harness-tests.XXXXXX`
+  node-local directory and `PYTHONPATH=. ../.venv/bin/python -m unittest
+  discover -s orchestrator_harness/tests -p 'test_*.py'`. Clean the temporary
+  directory afterward. This avoids shared-NFS delayed-delete cleanup races
+  without changing the test selection.
 - Record durations for the final regression budget.
 
 ### Unit coverage

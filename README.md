@@ -82,15 +82,21 @@ uv run pytest
 Run the complete imported-harness unit suite from its own package root:
 
 ```bash
-cd harness
-PYTHONPATH=. ../.venv/bin/python -m unittest discover \
-  -s orchestrator_harness/tests -p 'test_*.py'
-cd ..
+TMPROOT=$(mktemp -d /tmp/ai-researcher-harness-tests.XXXXXX)
+(
+  trap 'rm -rf "$TMPROOT"' EXIT
+  cd harness
+  TMPDIR="$TMPROOT" TEMP="$TMPROOT" TMP="$TMPROOT" \
+    PYTHONPATH=. ../.venv/bin/python -m unittest discover \
+      -s orchestrator_harness/tests -p 'test_*.py'
+)
 ```
 
 No test writes `harness/local-config/harness-config.json`; local provider
 configuration is operator-owned and ignored. Capture the exact Git commit,
 `uv.lock` digest, commands, durations, and skips separately for a submission.
+The node-local temporary directory avoids NFS delayed-delete races during test
+cleanup; it does not change the code or test selection.
 
 ### Hermetic experiment smoke test
 
