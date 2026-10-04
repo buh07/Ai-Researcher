@@ -172,10 +172,20 @@ different provider's expired credential:
 
 ```bash
 uv run omnigent setup
+export TMPDIR=/tmp TEMP=/tmp TMP=/tmp
+uv run omnigent stop
+uv run omnigent start --no-open
 codex login status
 uv run omnigent run --harness codex --model gpt-5.6-sol \
   agents/research-director
 ```
+
+The explicit node-local temporary directory is also required by the long-lived
+Omnigent host and server processes on NFS-backed workstations. Without it,
+successful bundle extraction can still fail during delayed NFS cleanup with a
+misleading `Directory not empty` / `invalid agent bundle` error. Restarting the
+daemons after exporting the variables ensures the daemons inherit `/tmp`; keep
+the same variables set for the client command.
 
 A suitable opening request is:
 

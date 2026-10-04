@@ -466,11 +466,25 @@ session that failed provider authentication before creating a research record:
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
+# Omnigent validates uploaded bundles in temporary directories. Keep the
+# client and both long-lived daemons off shared NFS temporary storage; otherwise
+# delayed .nfs-file cleanup can surface as a false "invalid agent bundle" error.
+export TMPDIR=/tmp TEMP=/tmp TMP=/tmp
+uv run omnigent stop
+uv run omnigent start --no-open
+uv run omnigent host status
+uv run omnigent server status
+
 uv run omnigent run --harness codex --model gpt-5.6-sol \
   agents/research-director -p \
   'Propose a bounded investigation of evidence-guided experiment selection. Stop and ask me to confirm the exact research objective, primary metric, dataset, risk tolerance, and consequential execution scope before treating the objective as active. Verify data/API access, license/privacy, identity, and compute feasibility. Prepare cited evidence, at least two experiment candidates, and an independent safety review. Stop again for exact-digest human approval before staging, and never launch without my explicit decision.'
 )
 ```
+
+If the command previously failed with `[Errno 39] Directory not empty`, do not
+resume that failed session. The stop/start sequence above replaces daemons that
+inherited shared temporary storage, and the final command creates the required
+fresh session.
 
 The director must journal `research-question/v1` as a proposal and display its
 question ID and record digest. In a second terminal, create and record the human
