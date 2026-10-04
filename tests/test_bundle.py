@@ -40,6 +40,10 @@ RESEARCH_RUNTIME_TOOLS = {
     "shutdown_research_harness",
     "record_experiment_result",
 }
+EVIDENCE_MARKER_TOOLS = {
+    "mark_provider_execution_start",
+    "mark_provider_execution_end",
+}
 
 
 def test_omnigent_bundle_loads() -> None:
@@ -50,7 +54,7 @@ def test_omnigent_bundle_loads() -> None:
         agent.name: {tool.name for tool in agent.local_tools}
         for agent in spec.sub_agents
     }
-    assert local_tools["evidence-researcher"] == {"execution_marker"}
+    assert local_tools["evidence-researcher"] == EVIDENCE_MARKER_TOOLS
     assert all(
         not tools
         for name, tools in local_tools.items()
@@ -61,6 +65,16 @@ def test_omnigent_bundle_loads() -> None:
 def test_research_runtime_functions_are_in_the_live_dispatch_grant() -> None:
     spec = load(BUNDLE)
     assert RESEARCH_RUNTIME_TOOLS <= _granted_tool_names(spec, "codex")
+
+
+def test_evidence_markers_are_in_the_live_dispatch_grant() -> None:
+    spec = load(BUNDLE)
+    evidence_researcher = next(
+        agent for agent in spec.sub_agents if agent.name == "evidence-researcher"
+    )
+    assert EVIDENCE_MARKER_TOOLS <= _granted_tool_names(
+        evidence_researcher, "codex"
+    )
 
 
 def test_all_research_agents_use_authenticated_codex_harness() -> None:
@@ -237,6 +251,12 @@ def test_local_branch_events_are_single_use_dispatch_markers(
     (tmp_path / "harness" / "orchestrator_harness").mkdir(parents=True)
     monkeypatch.setenv("AI_RESEARCHER_ROOT", str(tmp_path))
     runtime = runpy.run_path(str(RUNTIME_CORE))
+    with pytest.raises(ValueError, match="Omnigent agent name"):
+        runtime["start_parallel_branch"](
+            "branch-invalid-agent",
+            "237394e077b64231b6ac6ea73ae73892",
+            "child-session",
+        )
     started = runtime["_start_branch_event"]("branch-1", "agent-1", "session-1")
     finished = runtime["_finish_branch_event"](started["invocation_token"])
     record, start_time, end_time = runtime["_consume_branch_event"](
@@ -267,8 +287,7 @@ def test_evidence_provider_execution_markers_are_narrow_and_single_use(
             / "agents"
             / "evidence-researcher"
             / "tools"
-            / "python"
-            / "execution_marker.py"
+            / "execution_marker_core.py"
         )
     )
     started = marker_module["mark_provider_execution_start"]("branch-a")

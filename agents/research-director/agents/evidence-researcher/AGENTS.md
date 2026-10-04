@@ -26,3 +26,8 @@ independently exported Omnigent session receipt supplies timing used for an over
 completed start-marker result through the completed end-marker result inside your provider response.
 Request/response persistence, local director start/finish events, caller-written timestamps, and
 mutable session-metadata timestamps are ignored.
+
+Use the canonical `evidence-package/v1` field names: `evidence_package_id`, `question_id`,
+`objective_confirmation_digest`, `claims`, `conflicts`, and `coverage_gaps`. Each item in `claims`
+must contain `evidence_id`, `claim_type: external-fact`, `claim`, `source_type`, `citation`,
+`support`, and `uncertainty`; do not substitute `package_id` or `evidence_items` aliases.

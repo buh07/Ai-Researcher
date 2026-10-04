@@ -10,6 +10,7 @@ __pycache__/
 
 # Omnigent and research runtime state must not enter source control.
 .omnigent/
+.codex-tmp/
 runtime/
 artifacts/
 results/

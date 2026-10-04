@@ -638,6 +638,14 @@ In the director session:
 6. Record distinct `evidence-package/v1` and `parallel-branch/v1` records.
 7. Reconcile agreements, conflicts, coverage gaps, and unresolved questions.
 
+For `start_parallel_branch` and the recorded branch provenance, use the
+Omnigent agent name `evidence-researcher` as `producer_agent_id`, not the
+shared hexadecimal durable agent ID shown by some session-inspection calls.
+Evidence JSON must use the canonical `evidence_package_id` and `claims` fields;
+`package_id` and `evidence_items` are not accepted aliases. After changing or
+upgrading the bundle, start a fresh director session so newly allocated child
+sessions receive the current registered tool surface.
+
 Export each real child transcript with this copy/pasteable prompt loop:
 
 ```bash

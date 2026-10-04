@@ -554,8 +554,9 @@ per-function entry modules under `tools/python/` expose:
   `read_experiment_cancellation_evidence`, `retire_experiment`, and
   `shutdown_research_harness`
 
-The evidence-researcher has one separate, least-privileged local module,
-`execution_marker.py`, exposing only `mark_provider_execution_start` and
+The evidence researcher has one separate, least-privileged implementation module,
+`tools/execution_marker_core.py`, with grant-safe per-function entry modules
+under `tools/python/` exposing only `mark_provider_execution_start` and
 `mark_provider_execution_end`. It cannot read or write the journal, approve or
 launch execution, or provide timing directly; the verifier trusts only the
 corresponding completed call/result items in the independently exported

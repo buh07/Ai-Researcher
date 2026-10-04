@@ -246,10 +246,16 @@ def start_parallel_branch(
 
     Args:
         branch_id: Stable identity that the later parallel-branch/v1 will carry.
-        producer_agent_id: Exact specialist agent identity to dispatch.
+        producer_agent_id: Omnigent specialist agent name. This must be
+            ``evidence-researcher``; do not pass the shared durable agent ID.
         producer_session_id: Exact independent Omnigent session identity.
     """
 
+    if producer_agent_id != "evidence-researcher":
+        raise ValueError(
+            "producer_agent_id must be the Omnigent agent name "
+            "'evidence-researcher', not a durable agent ID"
+        )
     return _start_branch_event(branch_id, producer_agent_id, producer_session_id)
 
 
