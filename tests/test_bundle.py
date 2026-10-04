@@ -40,9 +40,10 @@ RESEARCH_RUNTIME_TOOLS = {
     "shutdown_research_harness",
     "record_experiment_result",
 }
-EVIDENCE_MARKER_TOOLS = {
+EVIDENCE_TOOLS = {
     "mark_provider_execution_start",
     "mark_provider_execution_end",
+    "search_public_web",
 }
 
 
@@ -54,7 +55,11 @@ def test_omnigent_bundle_loads() -> None:
         agent.name: {tool.name for tool in agent.local_tools}
         for agent in spec.sub_agents
     }
-    assert local_tools["evidence-researcher"] == EVIDENCE_MARKER_TOOLS
+    assert local_tools["evidence-researcher"] == EVIDENCE_TOOLS
+    evidence_researcher = next(
+        agent for agent in spec.sub_agents if agent.name == "evidence-researcher"
+    )
+    assert evidence_researcher.tools.builtins == []
     assert all(
         not tools
         for name, tools in local_tools.items()
@@ -67,12 +72,12 @@ def test_research_runtime_functions_are_in_the_live_dispatch_grant() -> None:
     assert RESEARCH_RUNTIME_TOOLS <= _granted_tool_names(spec, "codex")
 
 
-def test_evidence_markers_are_in_the_live_dispatch_grant() -> None:
+def test_evidence_tools_are_in_the_live_dispatch_grant() -> None:
     spec = load(BUNDLE)
     evidence_researcher = next(
         agent for agent in spec.sub_agents if agent.name == "evidence-researcher"
     )
-    assert EVIDENCE_MARKER_TOOLS <= _granted_tool_names(
+    assert EVIDENCE_TOOLS <= _granted_tool_names(
         evidence_researcher, "codex"
     )
 
@@ -176,7 +181,7 @@ def test_bundle_roles_tools_versions_permissions_and_budgets_are_exact() -> None
         assert config["spec_version"] == 1
         tools = config.get("tools", {})
         if config["name"] == "evidence-researcher":
-            assert tools == {"builtins": ["web_search"]}
+            assert tools == {}
         else:
             assert tools == {}
     prompts = {
@@ -307,3 +312,54 @@ def test_evidence_provider_execution_markers_are_narrow_and_single_use(
         marker_module["mark_provider_execution_end"](
             "branch-a", started["marker_id"]
         )
+
+
+def test_named_public_web_search_returns_auditable_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    search_module = runpy.run_path(
+        str(
+            BUNDLE
+            / "agents"
+            / "evidence-researcher"
+            / "tools"
+            / "python"
+            / "search_public_web.py"
+        )
+    )
+    html = b"""
+    <a href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fopenml.org%2Ft%2F59"
+       class="result-link">OpenML Task 59</a>
+    <td class="result-snippet">Official task metadata for Iris.</td>
+    """
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, limit: int) -> bytes:
+            assert limit > len(html)
+            return html
+
+        def geturl(self) -> str:
+            return "https://lite.duckduckgo.com/lite/?q=OpenML+task+59"
+
+    def fake_urlopen(request, timeout: float):
+        assert request.full_url.startswith("https://lite.duckduckgo.com/lite/?q=")
+        assert timeout == 5.0
+        return Response()
+
+    monkeypatch.setitem(search_module["_search"].__globals__, "urlopen", fake_urlopen)
+    result = search_module["_search"]("OpenML task 59", 3, 5.0)
+    assert result["schema"] == "public-web-search-result/v1"
+    assert result["engine"] == "DuckDuckGo Lite"
+    assert result["results"] == [
+        {
+            "title": "OpenML Task 59",
+            "url": "https://openml.org/t/59",
+            "snippet": "Official task metadata for Iris.",
+        }
+    ]

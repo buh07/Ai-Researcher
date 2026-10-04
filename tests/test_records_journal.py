@@ -133,6 +133,7 @@ def _provider_invocation(
     include_markers: bool = True,
     include_substantive_call: bool = True,
     substantive_after_end: bool = False,
+    search_tool_name: str = "web_search",
 ):
     session_id = session_id or f"conv-{branch_id}"
     suffix = 1 if branch_id.endswith("a") else 2
@@ -203,7 +204,7 @@ def _provider_invocation(
                 "record_type": "item", "id": f"search-call-{branch_id}",
                 "type": "function_call", "status": "completed",
                 "response_id": response_id, "created_at": marker_start + 1,
-                "model": f"agent:{branch_id}", "name": "web_search",
+                "model": f"agent:{branch_id}", "name": search_tool_name,
                 "arguments": json.dumps({"query": f"evidence for {branch_id}"}),
                 "call_id": search_call_id,
             }),
@@ -278,6 +279,15 @@ def test_provider_export_rejects_substantive_work_after_end_marker() -> None:
 def test_provider_export_requires_substantive_work_between_markers() -> None:
     with pytest.raises(JournalConflictError, match="substantive provider tool"):
         _provider_invocation("branch-a", include_substantive_call=False)
+
+
+def test_provider_export_accepts_named_public_web_search_workaround() -> None:
+    verified = _provider_invocation(
+        "branch-a", search_tool_name="search_public_web"
+    )
+    assert verified.payload["substantive_tool_calls"] == [
+        {"call_id": "call-search-branch-a", "name": "search_public_web"}
+    ]
 
 
 def _bind_provider_receipt(record: dict, provider_invocation) -> dict:

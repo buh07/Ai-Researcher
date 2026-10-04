@@ -183,7 +183,8 @@ terminal `idle` status, and exactly one completed
 `mark_provider_execution_start` call/result followed by one completed
 `mark_provider_execution_end` call/result in the same provider response. Marker
 arguments/results must bind the exact branch and start-marker ID. At least one
-completed `web_search` call/result must occur strictly between the markers, and
+completed `search_public_web` call/result (or a legacy provider `web_search`)
+must occur strictly between the markers, and
 no substantive tool call may occur outside them in that response. Final response
 generation after the end marker remains allowed. The positive
 ordered interval is derived only from the two provider-owned completed marker-result

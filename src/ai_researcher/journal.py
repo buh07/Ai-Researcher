@@ -33,6 +33,7 @@ class JournalConflictError(RuntimeError):
 
 
 _PROVIDER_ATTESTATION_KEY = secrets.token_bytes(32)
+_PROVIDER_SEARCH_TOOL_NAMES = frozenset({"web_search", "search_public_web"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,7 +228,10 @@ def _verify_omnigent_session_export(
         and row.get("response_id") == response_id
         and row.get("name") not in marker_tool_names
     ]
-    if not any(row.get("name") == "web_search" for _, row in substantive_calls):
+    if not any(
+        row.get("name") in _PROVIDER_SEARCH_TOOL_NAMES
+        for _, row in substantive_calls
+    ):
         raise JournalConflictError(
             "provider execution interval requires a completed substantive provider tool call"
         )
@@ -449,7 +453,7 @@ def _validate_stored_provider_receipt(
         or not substantive_calls
         or not any(
             isinstance(item, dict)
-            and item.get("name") == "web_search"
+            and item.get("name") in _PROVIDER_SEARCH_TOOL_NAMES
             and isinstance(item.get("call_id"), str)
             and item["call_id"]
             for item in substantive_calls

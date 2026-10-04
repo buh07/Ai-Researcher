@@ -17,9 +17,5 @@ interaction:
     input: [text]
     output: [text]
 
-tools:
-  builtins:
-    - web_search
-
 async: true
 cancellable: true

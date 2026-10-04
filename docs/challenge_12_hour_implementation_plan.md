@@ -254,7 +254,7 @@ Authority is deliberately split:
 |---|---|---|---|---|
 | Human scientist | Research objective, primary metric, dataset, risk tolerance, execution scope, and final consequential approval | Objective-confirmation interaction and the exact digest-bound approval/launch interactions; no direct journal or measurement mutation | Objective packet, feasibility evidence, candidate comparison, safety review, exact experiment digest | Attributable objective confirmation, approval/rejection with constraints, and explicit launch decision |
 | `research-director` | Workflow routing, gate sequence, and preservation of disagreements; **no** independent objective, experiment-selection, safety, approval, or result-interpretation authority | Five declared sub-agents plus the research-runtime surface for records/receipt, trusted branch events, preflight, approval/stage/launch, status/wait/review/evidence/ingestion, result conversion, force-stop/retire/shutdown | Human-confirmed objective/scope and exact upstream records/budgets | Ordered handoffs, persisted specialist records, exact approval question/digests, lifecycle status, and faithful presentation of the analyst's `updated-decision/v1` |
-| `evidence-researcher` | Whether each narrow external claim is supported and what source conflict/uncertainty remains | Built-in `web_search` plus narrow provider-execution start/end marker tools; no research-runtime, journal, experiment execution, or approval tool | `question_id`, `branch_id`, bounded evidence question, access constraints | `evidence-package/v1` with claim-level external citations, support, conflicts, and gaps |
+| `evidence-researcher` | Whether each narrow external claim is supported and what source conflict/uncertainty remains | Named local `search_public_web` plus narrow provider-execution start/end marker tools; no research-runtime, journal, experiment execution, or approval tool | `question_id`, `branch_id`, bounded evidence question, access constraints | `evidence-package/v1` with claim-level external citations, support, conflicts, and gaps |
 | `hypothesis-scientist` | Falsifiable hypothesis portfolio, predictions, falsifiers, and competing explanations | No configured tools; operates only on supplied records | Fixed question and supplied evidence IDs | `hypothesis-portfolio/v1` with competing explanations and uncertainty |
 | `experiment-designer` | Candidate designs, ranking, and exactly one selection recommendation under declared criteria | No configured tools; operates only on supplied records | Confirmed scope/digest, routed hypothesis, evidence, data/compute envelope | `experiment-candidates/v1` with at least two candidates, selected ID, selection rationale, and rejected-candidate rationales |
 | `safety-reviewer` | Independent `APPROVAL_REQUIRED`, `REVISE`, or `REJECT` verdict and required controls | No configured tools; operates only on supplied records | Selected candidate and objective digests, confirmed risk/scope, budgets, controls | `safety-review/v1` with risks, controls, prohibited actions, limitations, and exact approval question |
@@ -324,7 +324,7 @@ merely list async-capable agents:
    only a local dispatch marker. Give `record_research_record` the actual
    `provider_session_id`; it independently exports that Omnigent session. Each
    evidence child must call its narrow start marker before substantive work and
-   its matching end marker afterward, with at least one completed `web_search`
+   its matching end marker afterward, with at least one completed `search_public_web`
    call/result strictly between them and no substantive tool calls outside. Only the completed marker-result item
    timestamps in the provider export supply the authoritative interval. Request
    and response persistence, mutable session metadata, and caller timestamps never do.
@@ -556,11 +556,18 @@ per-function entry modules under `tools/python/` expose:
 
 The evidence researcher has one separate, least-privileged implementation module,
 `tools/execution_marker_core.py`, with grant-safe per-function entry modules
-under `tools/python/` exposing only `mark_provider_execution_start` and
-`mark_provider_execution_end`. It cannot read or write the journal, approve or
+under `tools/python/` exposing `mark_provider_execution_start`,
+`search_public_web`, and `mark_provider_execution_end`. It cannot read or write the journal, approve or
 launch execution, or provide timing directly; the verifier trusts only the
 corresponding completed call/result items in the independently exported
 Omnigent session.
+
+The pinned Omnigent 0.16 Codex adapter drops the unnamed
+`web_search_preview` schema before inference. The named `search_public_web`
+entry point therefore performs the live HTTPS discovery call explicitly and
+leaves an auditable function call in the provider transcript. Its search
+snippets are discovery aids only; cited support must come from the underlying
+source.
 
 Human objective and approval records are deliberately unavailable to agents;
 an attributable operator uses `scripts/record_human_authority.py`. Do not add a

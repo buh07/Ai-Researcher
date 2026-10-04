@@ -34,7 +34,7 @@ function under `tools/python/`, backed by the single implementation module
 `build_harness_result`, `record_experiment_result`,
 `force_stop_experiment`, `read_experiment_cancellation_evidence`,
 `retire_experiment`, and `shutdown_research_harness`.
-Specialist tool access is separate: evidence-researcher has built-in `web_search` plus the narrow
+Specialist tool access is separate: evidence-researcher has named local `search_public_web` plus the narrow
 local `mark_provider_execution_start` / `mark_provider_execution_end` boundary tools; the other
 specialists have no configured tools.
 
@@ -54,7 +54,7 @@ specialists have no configured tools.
    provider-owned export identifies the evidence-researcher child, model, harness, positive token usage,
    and terminal idle state. It must contain exactly one completed start-marker call/result before the
    evidence work and one completed end-marker call/result afterward, bound to the exact branch and one
-   provider response. At least one completed `web_search` call/result must fall strictly between them,
+   provider response. At least one completed `search_public_web` call/result must fall strictly between them,
    and no substantive tool call may occur outside them in that response. The interval comes only from
    the two completed marker-result item timestamps;
    request persistence, response persistence, mutable session metadata, and director wrapper timestamps

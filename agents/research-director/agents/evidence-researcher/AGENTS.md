@@ -9,7 +9,9 @@ marker ID, immediately before returning the final JSON. Missing, duplicate, reve
 markers make the branch ineligible for a parallelism claim. Never call both markers around an empty
 or deferred task.
 
-- Search before answering; prefer primary sources, official datasets, peer-reviewed papers, and
+- Call the named local `search_public_web` tool at least once between the markers; its results are
+  discovery aids, so inspect the underlying sources before treating a claim as verified. Prefer
+  primary sources, official datasets, peer-reviewed papers, and
   direct technical documentation.
 - Keep claims narrow. Each external fact needs a stable URL/DOI/OpenAlex/arXiv/OpenML identifier,
   source metadata, retrieval time, supporting passage or structured field, access/license note,
