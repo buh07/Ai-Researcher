@@ -1412,6 +1412,7 @@ def test_complete_hermetic_workflow_reopens_with_identical_final_receipt(
     )
     evidence_a_payload = _evidence(objective["record_digest"])
     evidence_a_payload["evidence_package_id"] = "evidence-registry"
+    evidence_a_payload["claims"][0]["source_type"] = "official-dataset-registry"
     evidence_b_payload = json.loads(json.dumps(evidence_a_payload))
     evidence_b_payload["evidence_package_id"] = "evidence-method"
     evidence_b_payload["claims"][0].update(
@@ -1419,6 +1420,7 @@ def test_complete_hermetic_workflow_reopens_with_identical_final_receipt(
             "evidence_id": "claim-2",
             "claim": "Matched search orders can be compared at a fixed threshold.",
             "support": "The method fixes the split, candidates, threshold, and budget.",
+            "source_type": "primary-paper",
         }
     )
     evidence_b_payload["claims"][0]["citation"].update(
@@ -1463,6 +1465,81 @@ def test_complete_hermetic_workflow_reopens_with_identical_final_receipt(
         start_marker_id = f"marker-start-{branch_id}"
         start_call_id = f"call-start-{branch_id}"
         end_call_id = f"call-end-{branch_id}"
+        provider_package = {
+            key: value for key, value in evidence.items() if key != "record_digest"
+        }
+        citation_url = provider_package["claims"][0]["citation"]["url"]
+        second_source_url = f"https://example.org/{branch_id}/corroboration"
+        inspection_rows = []
+        for index, url in enumerate((citation_url, second_source_url), start=1):
+            inspection_rows.extend(
+                [
+                    {
+                        "record_type": "item",
+                        "id": f"inspect-call-{branch_id}-{index}",
+                        "type": "function_call",
+                        "status": "completed",
+                        "response_id": response_id,
+                        "created_at": marker_start + 2 + index * 2,
+                        "model": agent_id,
+                        "name": "inspect_public_source",
+                        "arguments": json.dumps({"url": url}),
+                        "call_id": f"call-inspect-{branch_id}-{index}",
+                    },
+                    {
+                        "record_type": "item",
+                        "id": f"inspect-result-{branch_id}-{index}",
+                        "type": "function_call_output",
+                        "status": "completed",
+                        "response_id": response_id,
+                        "created_at": marker_start + 3 + index * 2,
+                        "call_id": f"call-inspect-{branch_id}-{index}",
+                        "output": json.dumps({
+                            "schema": "public-source-inspection/v1",
+                            "requested_url": url,
+                            "final_url": url,
+                            "http_status": 200,
+                            "content_type": "text/html",
+                            "retrieved_at": "2026-10-03T16:01:00Z",
+                            "body_sha256": str(index) * 64,
+                            "title": f"Source {index}",
+                            "text_excerpt": f"Inspected source {index}.",
+                            "truncated": False,
+                        }),
+                    },
+                ]
+            )
+        package_digest = validate_record(provider_package)["record_digest"]
+        validation_rows = [
+            {
+                "record_type": "item",
+                "id": f"validation-call-{branch_id}",
+                "type": "function_call",
+                "status": "completed",
+                "response_id": response_id,
+                "created_at": marker_start + 20,
+                "model": agent_id,
+                "name": "validate_evidence_package",
+                "arguments": json.dumps({"package_json": json.dumps(provider_package)}),
+                "call_id": f"call-validation-{branch_id}",
+            },
+            {
+                "record_type": "item",
+                "id": f"validation-result-{branch_id}",
+                "type": "function_call_output",
+                "status": "completed",
+                "response_id": response_id,
+                "created_at": marker_start + 21,
+                "call_id": f"call-validation-{branch_id}",
+                "output": json.dumps({
+                    "schema": "evidence-package-validation/v1",
+                    "valid": True,
+                    "evidence_package_id": provider_package["evidence_package_id"],
+                    "claim_count": len(provider_package["claims"]),
+                    "record_digest": package_digest,
+                }),
+            },
+        ]
         export = "\n".join(
             json.dumps(row)
             for row in (
@@ -1528,6 +1605,8 @@ def test_complete_hermetic_workflow_reopens_with_identical_final_receipt(
                     "call_id": f"call-search-{branch_id}",
                     "output": json.dumps({"results": [{"title": "Evidence"}]}),
                 },
+                *inspection_rows,
+                *validation_rows,
                 {
                     "record_type": "item", "id": f"end-call-{branch_id}",
                     "type": "function_call", "status": "completed",
@@ -1561,7 +1640,7 @@ def test_complete_hermetic_workflow_reopens_with_identical_final_receipt(
                     "created_at": response_time,
                     "role": "assistant",
                     "content": [
-                        {"type": "text", "text": f"Completed {branch_id}."}
+                        {"type": "output_text", "text": json.dumps(provider_package)}
                     ],
                 },
             )

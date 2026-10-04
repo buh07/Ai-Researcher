@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import runpy
 import tomllib
 from pathlib import Path
@@ -41,9 +42,11 @@ RESEARCH_RUNTIME_TOOLS = {
     "record_experiment_result",
 }
 EVIDENCE_TOOLS = {
+    "inspect_public_source",
     "mark_provider_execution_start",
     "mark_provider_execution_end",
     "search_public_web",
+    "validate_evidence_package",
 }
 
 
@@ -363,3 +366,191 @@ def test_named_public_web_search_returns_auditable_results(
             "snippet": "Official task metadata for Iris.",
         }
     ]
+
+
+def test_public_source_inspection_returns_auditable_source_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inspection_module = runpy.run_path(
+        str(
+            BUNDLE
+            / "agents"
+            / "evidence-researcher"
+            / "tools"
+            / "python"
+            / "inspect_public_source.py"
+        )
+    )
+    html = b"""
+    <html><head><title>Official Iris metadata</title></head>
+    <body><script>ignore me</script><h1>Iris</h1><p>150 rows and four features.</p></body></html>
+    """
+
+    class Headers:
+        def get_content_type(self) -> str:
+            return "text/html"
+
+        def get_content_charset(self) -> str:
+            return "utf-8"
+
+    class Response:
+        headers = Headers()
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, limit: int) -> bytes:
+            assert limit > len(html)
+            return html
+
+        def geturl(self) -> str:
+            return "https://archive.ics.uci.edu/dataset/53/iris"
+
+    def fake_open(request, timeout: float):
+        assert request.full_url == "https://archive.ics.uci.edu/dataset/53/iris"
+        assert timeout == 5.0
+        return Response()
+
+    globals_ = inspection_module["_inspect"].__globals__
+    monkeypatch.setitem(globals_, "_open_public_source", fake_open)
+    monkeypatch.setitem(globals_, "_assert_public_http_url", lambda value: value)
+    result = inspection_module["_inspect"](
+        "https://archive.ics.uci.edu/dataset/53/iris", 5.0, 1000
+    )
+    assert result["schema"] == "public-source-inspection/v1"
+    assert result["http_status"] == 200
+    assert result["title"] == "Official Iris metadata"
+    assert "150 rows and four features." in result["text_excerpt"]
+    assert "ignore me" not in result["text_excerpt"]
+    assert len(result["body_sha256"]) == 64
+
+
+def test_public_source_inspection_rejects_private_hosts() -> None:
+    inspection_module = runpy.run_path(
+        str(
+            BUNDLE
+            / "agents"
+            / "evidence-researcher"
+            / "tools"
+            / "python"
+            / "inspect_public_source.py"
+        )
+    )
+    with pytest.raises(ValueError, match="public"):
+        inspection_module["_assert_public_http_url"]("http://127.0.0.1/private")
+
+
+def test_public_source_inspection_rejects_redirects_to_private_hosts() -> None:
+    inspection_module = runpy.run_path(
+        str(
+            BUNDLE
+            / "agents"
+            / "evidence-researcher"
+            / "tools"
+            / "python"
+            / "inspect_public_source.py"
+        )
+    )
+    handler = inspection_module["_PublicRedirectHandler"]()
+    request = inspection_module["Request"]("https://example.org/source")
+    with pytest.raises(ValueError, match="public"):
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            "http://127.0.0.1/private",
+        )
+
+
+def test_evidence_package_validator_rejects_the_failed_live_package_shape() -> None:
+    validator_module = runpy.run_path(
+        str(
+            BUNDLE
+            / "agents"
+            / "evidence-researcher"
+            / "tools"
+            / "python"
+            / "validate_evidence_package.py"
+        )
+    )
+    invalid = {
+        "schema": "evidence-package/v1",
+        "evidence_package_id": "package-a",
+        "question_id": "question-a",
+        "objective_confirmation_digest": "a" * 64,
+        "claims": [
+            {
+                "evidence_id": "claim-a",
+                "claim_type": "external-fact",
+                "claim": "A narrow claim.",
+                "source_type": "official-documentation",
+                "citation": {
+                    "title": "Source",
+                    "stable_url": "https://example.org/source",
+                    "authors_or_organization": "Example",
+                    "publisher_or_source": "Example",
+                    "retrieved_at": "2026-10-04T00:00:00Z",
+                    "license_or_access_note": "Public access.",
+                    "verification_state": "verified-by-direct-inspection",
+                },
+                "support": {"text": "not a string"},
+                "uncertainty": "A limitation.",
+            }
+        ],
+        "conflicts": [],
+        "coverage_gaps": [],
+    }
+    with pytest.raises(ValueError, match="citation fields"):
+        validator_module["_validate"](json.dumps(invalid))
+
+
+def test_evidence_package_validator_returns_canonical_digest() -> None:
+    validator_module = runpy.run_path(
+        str(
+            BUNDLE
+            / "agents"
+            / "evidence-researcher"
+            / "tools"
+            / "python"
+            / "validate_evidence_package.py"
+        )
+    )
+    package = {
+        "schema": "evidence-package/v1",
+        "evidence_package_id": "package-a",
+        "question_id": "question-a",
+        "objective_confirmation_digest": "a" * 64,
+        "claims": [
+            {
+                "evidence_id": "claim-a",
+                "claim_type": "external-fact",
+                "claim": "A narrow claim.",
+                "source_type": "official-documentation",
+                "citation": {
+                    "title": "Source",
+                    "url": "https://example.org/source",
+                    "authors_or_organization": "Example",
+                    "publisher_or_source": "Example",
+                    "retrieved_at": "2026-10-04T00:00:00Z",
+                    "license_or_access_note": "Public access.",
+                    "verification_state": "verified",
+                },
+                "support": "A directly inspected field.",
+                "uncertainty": "A limitation.",
+            }
+        ],
+        "conflicts": [],
+        "coverage_gaps": [],
+    }
+    result = validator_module["_validate"](json.dumps(package))
+    assert result["schema"] == "evidence-package-validation/v1"
+    assert result["valid"] is True
+    assert result["evidence_package_id"] == "package-a"
+    assert result["claim_count"] == 1
+    assert len(result["record_digest"]) == 64

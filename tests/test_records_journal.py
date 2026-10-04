@@ -132,6 +132,8 @@ def _provider_invocation(
     session_updated_at: int | None = None,
     include_markers: bool = True,
     include_substantive_call: bool = True,
+    include_source_inspections: bool = True,
+    include_validation: bool = True,
     substantive_after_end: bool = False,
     search_tool_name: str = "web_search",
 ):
@@ -147,6 +149,39 @@ def _provider_invocation(
     start_call_id = f"call-start-{branch_id}"
     end_call_id = f"call-end-{branch_id}"
     search_call_id = f"call-search-{branch_id}"
+    source_urls = [
+        f"https://example.org/{branch_id}/source-a",
+        f"https://example.org/{branch_id}/source-b",
+    ]
+    package = {
+        "schema": "evidence-package/v1",
+        "evidence_package_id": f"package-{branch_id}",
+        "question_id": "q-1",
+        "objective_confirmation_digest": "a" * 64,
+        "claims": [
+            {
+                "evidence_id": f"claim-{branch_id}-{index}",
+                "claim_type": "external-fact",
+                "claim": f"Narrow externally supported fact {index}.",
+                "source_type": "official-documentation",
+                "citation": {
+                    "title": f"Source {index}",
+                    "url": url,
+                    "authors_or_organization": "Example",
+                    "publisher_or_source": "Example",
+                    "retrieved_at": "2026-10-03T12:01:00Z",
+                    "license_or_access_note": "Public access.",
+                    "verification_state": "verified",
+                },
+                "support": f"Directly inspected field {index}.",
+                "uncertainty": "Limited to the documented field.",
+            }
+            for index, url in enumerate(source_urls, start=1)
+        ],
+        "conflicts": [],
+        "coverage_gaps": [],
+    }
+    package_digest = validate_record(package)["record_digest"]
     rows = [
         json.dumps({
             "record_type": "session_meta",
@@ -170,7 +205,9 @@ def _provider_invocation(
             "id": f"request-{branch_id}",
             "type": "message",
             "status": "completed",
-            "response_id": response_id,
+            # Real Omnigent exports use a turn ID for the user request and a
+            # provider response ID for the calls/results.
+            "response_id": f"turn-{branch_id}",
             "created_by": "operator",
             "created_at": request_time,
             "role": "user",
@@ -199,7 +236,7 @@ def _provider_invocation(
                 }),
             }),
         ])
-        search_rows = [
+        substantive_rows = [
             json.dumps({
                 "record_type": "item", "id": f"search-call-{branch_id}",
                 "type": "function_call", "status": "completed",
@@ -216,8 +253,80 @@ def _provider_invocation(
                 "output": json.dumps({"results": [{"title": "Evidence"}]}),
             }),
         ]
+        if include_source_inspections:
+            for index, url in enumerate(source_urls, start=1):
+                substantive_rows.extend(
+                    [
+                        json.dumps({
+                            "record_type": "item",
+                            "id": f"inspect-call-{branch_id}-{index}",
+                            "type": "function_call",
+                            "status": "completed",
+                            "response_id": response_id,
+                            "created_at": marker_start + 2 + index * 2,
+                            "model": f"agent:{branch_id}",
+                            "name": "inspect_public_source",
+                            "arguments": json.dumps({"url": url}),
+                            "call_id": f"call-inspect-{branch_id}-{index}",
+                        }),
+                        json.dumps({
+                            "record_type": "item",
+                            "id": f"inspect-result-{branch_id}-{index}",
+                            "type": "function_call_output",
+                            "status": "completed",
+                            "response_id": response_id,
+                            "created_at": marker_start + 3 + index * 2,
+                            "call_id": f"call-inspect-{branch_id}-{index}",
+                            "output": json.dumps({
+                                "schema": "public-source-inspection/v1",
+                                "requested_url": url,
+                                "final_url": url,
+                                "http_status": 200,
+                                "content_type": "text/html",
+                                "retrieved_at": "2026-10-03T12:01:00Z",
+                                "body_sha256": str(index) * 64,
+                                "title": f"Source {index}",
+                                "text_excerpt": f"Directly inspected field {index}.",
+                                "truncated": False,
+                            }),
+                        }),
+                    ]
+                )
+        if include_validation:
+            substantive_rows.extend(
+                [
+                    json.dumps({
+                        "record_type": "item",
+                        "id": f"validation-call-{branch_id}",
+                        "type": "function_call",
+                        "status": "completed",
+                        "response_id": response_id,
+                        "created_at": marker_start + 20,
+                        "model": f"agent:{branch_id}",
+                        "name": "validate_evidence_package",
+                        "arguments": json.dumps({"package_json": json.dumps(package)}),
+                        "call_id": f"call-validation-{branch_id}",
+                    }),
+                    json.dumps({
+                        "record_type": "item",
+                        "id": f"validation-result-{branch_id}",
+                        "type": "function_call_output",
+                        "status": "completed",
+                        "response_id": response_id,
+                        "created_at": marker_start + 21,
+                        "call_id": f"call-validation-{branch_id}",
+                        "output": json.dumps({
+                            "schema": "evidence-package-validation/v1",
+                            "valid": True,
+                            "evidence_package_id": package["evidence_package_id"],
+                            "claim_count": len(package["claims"]),
+                            "record_digest": package_digest,
+                        }),
+                    }),
+                ]
+            )
         if include_substantive_call and not substantive_after_end:
-            rows.extend(search_rows)
+            rows.extend(substantive_rows)
         rows.extend([
             json.dumps({
                 "record_type": "item", "id": f"end-call-{branch_id}",
@@ -243,7 +352,7 @@ def _provider_invocation(
             }),
         ])
         if include_substantive_call and substantive_after_end:
-            rows.extend(search_rows)
+            rows.extend(substantive_rows)
     rows.append(
         json.dumps({
             "record_type": "item",
@@ -254,7 +363,7 @@ def _provider_invocation(
             "created_by": "assistant",
             "created_at": assistant_time,
             "role": "assistant",
-            "content": [{"type": "text", "text": f"Completed evidence analysis for {branch_id}."}],
+            "content": [{"type": "output_text", "text": json.dumps(package)}],
         })
     )
     export = "\n".join(rows).encode()
@@ -277,7 +386,7 @@ def test_provider_export_rejects_substantive_work_after_end_marker() -> None:
 
 
 def test_provider_export_requires_substantive_work_between_markers() -> None:
-    with pytest.raises(JournalConflictError, match="substantive provider tool"):
+    with pytest.raises(JournalConflictError, match="direct public-source inspections"):
         _provider_invocation("branch-a", include_substantive_call=False)
 
 
@@ -285,9 +394,24 @@ def test_provider_export_accepts_named_public_web_search_workaround() -> None:
     verified = _provider_invocation(
         "branch-a", search_tool_name="search_public_web"
     )
-    assert verified.payload["substantive_tool_calls"] == [
-        {"call_id": "call-search-branch-a", "name": "search_public_web"}
+    assert [
+        item["name"] for item in verified.payload["substantive_tool_calls"]
+    ] == [
+        "search_public_web",
+        "inspect_public_source",
+        "inspect_public_source",
+        "validate_evidence_package",
     ]
+    assert verified.payload["evidence_package_digest"]
+
+
+def test_provider_export_rejects_search_snippets_without_direct_source_inspection() -> None:
+    with pytest.raises(JournalConflictError, match="direct public-source inspections"):
+        _provider_invocation(
+            "branch-a",
+            include_source_inspections=False,
+            include_validation=False,
+        )
 
 
 def _bind_provider_receipt(record: dict, provider_invocation) -> dict:

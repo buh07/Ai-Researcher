@@ -33,7 +33,8 @@ class JournalConflictError(RuntimeError):
 
 
 _PROVIDER_ATTESTATION_KEY = secrets.token_bytes(32)
-_PROVIDER_SEARCH_TOOL_NAMES = frozenset({"web_search", "search_public_web"})
+_PROVIDER_INSPECTION_TOOL_NAME = "inspect_public_source"
+_PROVIDER_VALIDATION_TOOL_NAME = "validate_evidence_package"
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,13 +229,7 @@ def _verify_omnigent_session_export(
         and row.get("response_id") == response_id
         and row.get("name") not in marker_tool_names
     ]
-    if not any(
-        row.get("name") in _PROVIDER_SEARCH_TOOL_NAMES
-        for _, row in substantive_calls
-    ):
-        raise JournalConflictError(
-            "provider execution interval requires a completed substantive provider tool call"
-        )
+    substantive_results: dict[str, tuple[int, dict[str, Any]]] = {}
     for call_index, call in substantive_calls:
         if not start_result_index < call_index < end_call_index:
             raise JournalConflictError(
@@ -264,16 +259,107 @@ def _verify_omnigent_session_export(
             raise JournalConflictError(
                 "substantive provider tool timestamps fall outside execution markers"
             )
+        substantive_results[call_id] = (result_index, result)
 
-    branch_requests = [
+    inspection_calls = [
+        (index, row)
+        for index, row in substantive_calls
+        if row.get("name") == _PROVIDER_INSPECTION_TOOL_NAME
+    ]
+    inspected_urls: set[str] = set()
+    for _, call in inspection_calls:
+        call_id = str(call["call_id"])
+        arguments = _json_string_object(
+            call.get("arguments"), "public-source inspection arguments"
+        )
+        requested_url = _nonempty(str(arguments.get("url", "")), "inspection url")
+        output = _json_string_object(
+            substantive_results[call_id][1].get("output"),
+            "public-source inspection output",
+        )
+        final_url = _nonempty(str(output.get("final_url", "")), "inspection final_url")
+        if (
+            output.get("schema") != "public-source-inspection/v1"
+            or output.get("requested_url") != requested_url
+            or output.get("http_status") != 200
+            or not isinstance(output.get("text_excerpt"), str)
+            or not output["text_excerpt"].strip()
+            or not isinstance(output.get("body_sha256"), str)
+            or len(output["body_sha256"]) != 64
+        ):
+            raise JournalConflictError("public-source inspection result is malformed")
+        inspected_urls.update({requested_url, final_url})
+    distinct_requested_urls = {
+        _json_string_object(
+            call.get("arguments"), "public-source inspection arguments"
+        ).get("url")
+        for _, call in inspection_calls
+    }
+    if len(distinct_requested_urls) < 2:
+        raise JournalConflictError(
+            "provider execution interval requires at least two distinct direct public-source inspections"
+        )
+
+    validation_calls = [
+        (index, row)
+        for index, row in substantive_calls
+        if row.get("name") == _PROVIDER_VALIDATION_TOOL_NAME
+    ]
+    if len(validation_calls) != 1:
+        raise JournalConflictError(
+            "provider execution interval requires exactly one successful evidence-package validation"
+        )
+    validation_index, validation_call = validation_calls[0]
+    if validation_index != max(index for index, _ in substantive_calls):
+        raise JournalConflictError(
+            "evidence-package validation must be the final substantive tool call"
+        )
+    validation_arguments = _json_string_object(
+        validation_call.get("arguments"), "evidence-package validation arguments"
+    )
+    package_json = validation_arguments.get("package_json")
+    if not isinstance(package_json, str) or not package_json:
+        raise JournalConflictError("evidence-package validation lacks package_json")
+    try:
+        package = json.loads(package_json)
+        validated_package = validate_record(package, "evidence-package/v1")
+    except (json.JSONDecodeError, RecordValidationError) as exc:
+        raise JournalConflictError("validated evidence package is malformed") from exc
+    validation_call_id = str(validation_call["call_id"])
+    validation_output = _json_string_object(
+        substantive_results[validation_call_id][1].get("output"),
+        "evidence-package validation output",
+    )
+    if validation_output != {
+        "schema": "evidence-package-validation/v1",
+        "valid": True,
+        "evidence_package_id": validated_package["evidence_package_id"],
+        "claim_count": len(validated_package["claims"]),
+        "record_digest": validated_package["record_digest"],
+    }:
+        raise JournalConflictError("evidence-package validation result is malformed")
+    citation_urls = {
+        str(claim["citation"].get("url", ""))
+        for claim in validated_package["claims"]
+    }
+    if not citation_urls or "" in citation_urls or not citation_urls <= inspected_urls:
+        raise JournalConflictError(
+            "every evidence citation URL must match a directly inspected public source"
+        )
+
+    prior_user_messages = [
         row
         for row in items
         if row.get("type") == "message"
         and row.get("role") == "user"
         and row.get("status") == "completed"
-        and row.get("response_id") == response_id
-        and _contains_exact_branch_marker(row, branch_id)
+        and _finite_item_timestamp(row, "branch request") <= started
     ]
+    branch_requests = (
+        [max(prior_user_messages, key=lambda row: _finite_item_timestamp(row, "branch request"))]
+        if prior_user_messages
+        else []
+    )
     matching_responses = [
         row
         for row in items
@@ -282,9 +368,23 @@ def _verify_omnigent_session_export(
         and row.get("status") == "completed"
         and row.get("response_id") == response_id
     ]
-    if len(branch_requests) != 1 or not matching_responses:
+    if (
+        len(branch_requests) != 1
+        or not _contains_exact_branch_marker(branch_requests[0], branch_id)
+        or not matching_responses
+    ):
         raise JournalConflictError(
             "provider execution markers must belong to one completed branch response"
+        )
+    if any(
+        row.get("type") == "message"
+        and row.get("role") == "user"
+        and row.get("status") == "completed"
+        and started < _finite_item_timestamp(row, "interleaved user message") < completed
+        for row in items
+    ):
+        raise JournalConflictError(
+            "provider execution interval cannot contain an interleaved user turn"
         )
     request_time = _finite_item_timestamp(branch_requests[0], "branch request")
     response_times = [
@@ -293,6 +393,23 @@ def _verify_omnigent_session_export(
     if request_time > started or max(response_times) < completed:
         raise JournalConflictError(
             "provider execution markers fall outside their completed response"
+        )
+    final_response = max(
+        matching_responses,
+        key=lambda row: _finite_item_timestamp(row, "assistant response"),
+    )
+    try:
+        returned_package = json.loads(_message_text(final_response, "assistant response"))
+        validated_returned_package = validate_record(
+            returned_package, "evidence-package/v1"
+        )
+    except (json.JSONDecodeError, RecordValidationError) as exc:
+        raise JournalConflictError(
+            "provider final response must be one canonical evidence-package JSON object"
+        ) from exc
+    if validated_returned_package["record_digest"] != validated_package["record_digest"]:
+        raise JournalConflictError(
+            "provider final response differs from the validated evidence package"
         )
     export_digest = hashlib.sha256(export_bytes).hexdigest()
     receipt: dict[str, Any] = {
@@ -329,6 +446,9 @@ def _verify_omnigent_session_export(
             {"call_id": str(row["call_id"]), "name": str(row["name"])}
             for _, row in substantive_calls
         ],
+        "inspected_source_urls": sorted(inspected_urls),
+        "evidence_package_digest": validated_package["record_digest"],
+        "evidence_package_validation_call_id": validation_call_id,
         "completed_response_ids": [response_id],
         "export_item_count": len(items),
         "export_digest": export_digest,
@@ -350,6 +470,22 @@ def _json_string_object(value: Any, label: str) -> dict[str, Any]:
     if not isinstance(decoded, dict):
         raise JournalConflictError(f"Omnigent {label} must decode to an object")
     return decoded
+
+
+def _message_text(item: Mapping[str, Any], label: str) -> str:
+    content = item.get("content")
+    if not isinstance(content, list) or not content:
+        raise JournalConflictError(f"Omnigent {label} lacks text content")
+    parts = [
+        block.get("text")
+        for block in content
+        if isinstance(block, Mapping)
+        and block.get("type") in {"text", "output_text"}
+        and isinstance(block.get("text"), str)
+    ]
+    if not parts:
+        raise JournalConflictError(f"Omnigent {label} lacks text content")
+    return "".join(parts).strip()
 
 
 def _finite_item_timestamp(item: Mapping[str, Any], label: str) -> float:
@@ -430,6 +566,9 @@ def _validate_stored_provider_receipt(
     start_call_id = provider_receipt.get("execution_start_call_id")
     end_call_id = provider_receipt.get("execution_end_call_id")
     substantive_calls = provider_receipt.get("substantive_tool_calls")
+    inspected_source_urls = provider_receipt.get("inspected_source_urls")
+    evidence_package_digest = provider_receipt.get("evidence_package_digest")
+    validation_call_id = provider_receipt.get("evidence_package_validation_call_id")
     if (
         provider_receipt.get("schema")
         != "omnigent-provider-invocation-receipt/v1"
@@ -451,13 +590,32 @@ def _validate_stored_provider_receipt(
         or not provider_receipt["execution_end_marker_id"]
         or not isinstance(substantive_calls, list)
         or not substantive_calls
+        or len(
+            {
+                item.get("call_id")
+                for item in substantive_calls
+                if isinstance(item, dict)
+                and item.get("name") == _PROVIDER_INSPECTION_TOOL_NAME
+                and isinstance(item.get("call_id"), str)
+                and item["call_id"]
+            }
+        )
+        < 2
         or not any(
             isinstance(item, dict)
-            and item.get("name") in _PROVIDER_SEARCH_TOOL_NAMES
+            and item.get("name") == _PROVIDER_VALIDATION_TOOL_NAME
+            and item.get("call_id") == validation_call_id
             and isinstance(item.get("call_id"), str)
             and item["call_id"]
             for item in substantive_calls
         )
+        or not isinstance(inspected_source_urls, list)
+        or len(set(inspected_source_urls)) < 2
+        or not all(isinstance(item, str) and item for item in inspected_source_urls)
+        or not isinstance(evidence_package_digest, str)
+        or len(evidence_package_digest) != 64
+        or not isinstance(validation_call_id, str)
+        or not validation_call_id
         or provider_receipt.get("branch_id") != branch.get("branch_id")
         or provider_receipt.get("provider_session_id")
         != branch.get("provider_session_id")

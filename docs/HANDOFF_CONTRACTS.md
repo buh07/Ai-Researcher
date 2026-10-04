@@ -182,11 +182,15 @@ its parent/root session, model and harness, a positive provider token count,
 terminal `idle` status, and exactly one completed
 `mark_provider_execution_start` call/result followed by one completed
 `mark_provider_execution_end` call/result in the same provider response. Marker
-arguments/results must bind the exact branch and start-marker ID. At least one
-completed `search_public_web` call/result (or a legacy provider `web_search`)
-must occur strictly between the markers, and
-no substantive tool call may occur outside them in that response. Final response
-generation after the end marker remains allowed. The positive
+arguments/results must bind the exact branch and start-marker ID. At least two
+distinct completed `inspect_public_source` calls/results must occur strictly
+between the markers. Every citation URL must match an inspected requested or
+final URL. Exactly one successful `validate_evidence_package` call must be the
+last substantive call, and the final response must match its package digest.
+`search_public_web` (or a legacy provider `web_search`) is optional discovery;
+its snippets are not inspected evidence. No substantive tool call may occur
+outside the markers in that response. Final response generation after the end
+marker remains allowed. The positive
 ordered interval is derived only from the two provider-owned completed marker-result
 item timestamps. User-request, assistant-response, and mutable session-metadata
 timestamps such as `created_at`/`updated_at` never define the execution interval.

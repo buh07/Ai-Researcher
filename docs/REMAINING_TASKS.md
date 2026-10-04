@@ -631,9 +631,10 @@ In the director session:
    load-bearing claim independently.
 2. Call `start_parallel_branch` for each branch.
 3. Dispatch both `evidence-researcher` child sessions before waiting for either.
-4. Require each child to call the provider start marker, perform at least one
-   real `search_public_web`, capture claim-level citations, and call the provider end
-   marker.
+4. Require each child to call the provider start marker, directly retrieve at
+   least two distinct credible URLs with `inspect_public_source`, capture only
+   claim-level citations whose URLs match those inspections, validate the exact
+   package once with `validate_evidence_package`, and call the provider end marker.
 5. Finish each branch using its actual child-session ID.
 6. Record distinct `evidence-package/v1` and `parallel-branch/v1` records.
 7. Reconcile agreements, conflicts, coverage gaps, and unresolved questions.
@@ -645,10 +646,13 @@ Evidence JSON must use the canonical `evidence_package_id` and `claims` fields;
 `package_id` and `evidence_items` are not accepted aliases. After changing or
 upgrading the bundle, start a fresh director session so newly allocated child
 sessions receive the current registered tool surface.
-The named search tool is required because the pinned Omnigent 0.16 Codex
-adapter omits its unnamed `web_search_preview` schema. Search snippets are
-discovery aids, not sufficient support for a verified claim; inspect the
-underlying source inside the marked provider interval.
+The pinned Omnigent 0.16 Codex adapter omits its unnamed
+`web_search_preview` schema, so `search_public_web` remains available as an
+optional discovery aid. It can be rate-limited by its public search backend;
+if that happens, do not loop retries. Use stable primary/official URLs and the
+named `inspect_public_source` boundary. Search snippets are never sufficient
+support for a verified claim. The validator must be the last substantive tool
+call, and the final response must be the same JSON that it validated.
 
 Export each real child transcript with this copy/pasteable prompt loop:
 

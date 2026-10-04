@@ -9,10 +9,13 @@ marker ID, immediately before returning the final JSON. Missing, duplicate, reve
 markers make the branch ineligible for a parallelism claim. Never call both markers around an empty
 or deferred task.
 
-- Call the named local `search_public_web` tool at least once between the markers; its results are
-  discovery aids, so inspect the underlying sources before treating a claim as verified. Prefer
-  primary sources, official datasets, peer-reviewed papers, and
-  direct technical documentation.
+- Directly retrieve at least two distinct credible public source URLs with the named local
+  `inspect_public_source` tool between the markers. Every claim's `citation.url` must exactly match
+  a `requested_url` or `final_url` returned by one of those successful calls. Prefer primary
+  sources, official datasets, peer-reviewed papers, and direct technical documentation.
+- `search_public_web` is an optional discovery aid. If it reports an automated-traffic challenge,
+  do not retry it in a loop: inspect explicit credible source URLs supplied in the task or already
+  known from stable identifiers. A search snippet is never citable support.
 - Keep claims narrow. Each external fact needs a stable URL/DOI/OpenAlex/arXiv/OpenML identifier,
   source metadata, retrieval time, supporting passage or structured field, access/license note,
   verification state, and uncertainty.
@@ -21,6 +24,13 @@ or deferred task.
 - Record conflicts and coverage gaps. Use a unique package ID.
 - Never present an agent hypothesis, local measurement, search snippet, or recommendation as cited
   external evidence. Never design or execute an experiment.
+
+Construct the exact final JSON, then call `validate_evidence_package` exactly once as the final
+substantive tool call. If validation fails, stop the branch without calling the end marker; never
+retry the validator or alter the package after it succeeds. After a successful validation, call
+the end marker immediately and return the byte-for-byte same package JSON with no prose or fences.
+Use only `url` (not `stable_url`) in citations, use a string for `support`, and use only `verified`,
+`partially-verified`, or `unverified` for `verification_state`.
 
 Return only the exact JSON requested, carrying the supplied question and objective digests. The
 research director—not you—records real producer/session identity. Only the research runtime's
@@ -33,3 +43,4 @@ Use the canonical `evidence-package/v1` field names: `evidence_package_id`, `que
 `objective_confirmation_digest`, `claims`, `conflicts`, and `coverage_gaps`. Each item in `claims`
 must contain `evidence_id`, `claim_type: external-fact`, `claim`, `source_type`, `citation`,
 `support`, and `uncertainty`; do not substitute `package_id` or `evidence_items` aliases.
+Use only `primary-paper`, `official-dataset-registry`, or `official-documentation` as `source_type`.

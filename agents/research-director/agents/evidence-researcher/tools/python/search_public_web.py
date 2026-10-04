@@ -110,8 +110,9 @@ def _search(query: str, max_results: int, timeout_seconds: float) -> dict[str, A
     if len(body) > _MAX_RESPONSE_BYTES:
         raise RuntimeError("public web search response exceeded the size limit")
 
+    decoded = body.decode("utf-8", errors="replace")
     parser = _ResultsParser()
-    parser.feed(body.decode("utf-8", errors="replace"))
+    parser.feed(decoded)
     unique: list[dict[str, str]] = []
     seen: set[str] = set()
     for result in parser.results:
@@ -122,6 +123,16 @@ def _search(query: str, max_results: int, timeout_seconds: float) -> dict[str, A
         if len(unique) == max_results:
             break
     if not unique:
+        lowered = decoded.lower()
+        if any(
+            marker in lowered
+            for marker in ("challenge", "automated traffic", "anomaly")
+        ):
+            raise RuntimeError(
+                "public web search was rate-limited by an automated-traffic challenge; "
+                "do not retry it in a loop—inspect explicit credible source URLs with "
+                "inspect_public_source instead"
+            )
         raise RuntimeError("public web search returned no parseable results")
     return {
         "schema": "public-web-search-result/v1",
