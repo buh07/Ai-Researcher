@@ -25,24 +25,33 @@ present implementation artifact is not proof of a live scientific outcome.
 - [x] Unit/integration test sources: `tests/`
 - [x] Two-minute operator script: `DEMO.md`
 - [x] Claim boundaries and pending validation: `docs/LIMITATIONS.md`
-- [x] Captured final check output, durations, Git commit, lock digest, and skips:
-  external bundle `Ai-Researcher-submission-evidence/checks/` for commit
+- [x] Historical check output, durations, lock digest, and skips: external
+  bundle `Ai-Researcher-submission-evidence/checks/` for implementation commit
   `8a814084041a3a3051bcb751552474c8242f623b`
+- [ ] Fresh final check output for the exact submission commit; the commit must
+  be read from the external bundle's `checks/environment.txt`, not hardcoded
+  into this tracked checklist
 - [ ] Two clean rehearsals from fresh runtime state without manual repair
 
 Clean-checkout software checks (do not substitute these for live evidence):
 
 ```bash
+(
+set -euo pipefail
+
+cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
+TMPROOT=$(mktemp -d /tmp/ai-researcher-harness-tests.XXXXXX)
+trap 'rm -rf "$TMPROOT"' EXIT
+
 uv sync --frozen
 uv run python scripts/validate_bundle.py
 uv run pytest
-TMPROOT=$(mktemp -d /tmp/ai-researcher-harness-tests.XXXXXX)
 (
-  trap 'rm -rf "$TMPROOT"' EXIT
   cd harness
   TMPDIR="$TMPROOT" TEMP="$TMPROOT" TMP="$TMPROOT" \
     PYTHONPATH=. ../.venv/bin/python -m unittest discover \
       -s orchestrator_harness/tests -p 'test_*.py'
+)
 )
 ```
 
@@ -50,7 +59,8 @@ Use the node-local temporary directory exactly as shown. Shared NFS temporary
 storage can report a delayed-delete `Directory not empty`/`.nfs*` error during
 `TemporaryDirectory` cleanup even when every product assertion passed. The
 node-local path removes that filesystem race without skipping or changing a
-test.
+test. The outer parentheses isolate strict shell options, so a failed check
+returns to the prompt instead of closing the interactive terminal.
 
 ## Objective and feasibility
 

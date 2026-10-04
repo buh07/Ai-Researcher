@@ -11,6 +11,12 @@ terminal and run. Commands that require run-specific information prompt for it;
 they do not contain fake digests, identities, or placeholder paths. Omnigent
 interactions are described as operator actions rather than shell commands.
 
+Every multi-command block runs in a subshell, delimited by the opening `(` and
+closing `)`. Copy both delimiters. Strict error handling is enabled only inside
+that subshell, so a failed check stops the block and returns a nonzero status but
+does **not** enable `errexit`, `nounset`, or `pipefail` in the interactive shell
+and does not close the terminal.
+
 ## Current release identity
 
 - Repository: `https://github.com/buh07/Ai-Researcher.git`
@@ -24,15 +30,19 @@ interactions are described as operator actions rather than shell commands.
 - External evidence directory:
   `/jumbo/lisp/f004ndc/projects/Ai-Researcher-submission-evidence`
 
-If a later documentation or code commit becomes the submission commit, rerun
-Task 1 so the evidence names that exact commit.
+The recorded evidence below is historical evidence for the verified
+implementation commit. The current branch may contain later documentation-only
+commits. Do not expect the current `HEAD` to equal the historical evidence
+commit. After the repository has its eventual submission commit, use Task 1's
+fresh-capture block so `environment.txt` names that exact commit.
 
 ## Required challenge-submission work
 
-### [x] Task 1 — Capture and verify release-check evidence
+### [ ] Task 1 — Capture and verify release-check evidence for the submission commit
 
-**Status:** complete for commit
-`8a814084041a3a3051bcb751552474c8242f623b`.
+**Status:** historical evidence is complete and revalidated for commit
+`8a814084041a3a3051bcb751552474c8242f623b`. A fresh capture is still required
+after the eventual submission commit is created.
 
 Evidence is stored in:
 
@@ -67,35 +77,49 @@ The `operator_launch: ... invalid choice: 'detached.json'` text emitted during
 the full suite is expected output from a negative CLI parser test; the unittest
 summary, not that deliberately generated stderr, determines suite success.
 
-Revalidate the completed evidence at any time with:
+Revalidate the historical evidence at any time with the following block. It
+validates the recorded commit directly and deliberately does not require the
+current checkout to be at that older commit:
 
 ```bash
+(
 set -euo pipefail
 
 REPO=/jumbo/lisp/f004ndc/projects/Ai-Researcher
 CHECKS=/jumbo/lisp/f004ndc/projects/Ai-Researcher-submission-evidence/checks
+EVIDENCE_COMMIT=8a814084041a3a3051bcb751552474c8242f623b
+LOCK_DIGEST=ce4253d3d470c83448322aa35a830e06bb7dc008882cf9a3586e565d6cbb7c88
 
 cd "$REPO"
-test "$(git rev-parse HEAD)" = "8a814084041a3a3051bcb751552474c8242f623b"
-test "$(sha256sum uv.lock | awk '{print $1}')" = \
-  "ce4253d3d470c83448322aa35a830e06bb7dc008882cf9a3586e565d6cbb7c88"
+git cat-file -e "${EVIDENCE_COMMIT}^{commit}"
+test "$(git show "${EVIDENCE_COMMIT}:uv.lock" | sha256sum | awk '{print $1}')" = \
+  "$LOCK_DIGEST"
 
 cd "$CHECKS"
 sha256sum -c SHA256SUMS
+grep -Fx "$EVIDENCE_COMMIT" environment.txt
+grep -F "$LOCK_DIGEST  uv.lock" environment.txt
 grep -F "102 passed" project-tests.txt
 grep -F "Ran 514 tests" harness-tests.txt
 grep -F "OK (skipped=42)" harness-tests.txt
 grep -F "clean-working-tree: PASS" compile-diff-status.txt
+printf '%s\n' "Historical evidence validation: PASS ($EVIDENCE_COMMIT)"
+)
 ```
 
-If the submission commit changes, capture a fresh complete check set with:
+After creating the eventual submission commit, capture a fresh complete check
+set with the next block. Run it only from a clean branch synchronized with its
+upstream. Unlike the historical validation above, this block records whichever
+commit is checked out when it runs:
 
 ```bash
+(
 set -euo pipefail
 
 REPO=/jumbo/lisp/f004ndc/projects/Ai-Researcher
 EVIDENCE=/jumbo/lisp/f004ndc/projects/Ai-Researcher-submission-evidence
 TMPROOT=$(mktemp -d /tmp/ai-researcher-tests.XXXXXX)
+trap 'rm -rf "$TMPROOT"' EXIT
 
 cd "$REPO"
 mkdir -p "$EVIDENCE/checks"
@@ -120,7 +144,6 @@ mkdir -p "$EVIDENCE/checks"
   2>&1 | tee "$EVIDENCE/checks/project-tests.txt"
 
 (
-  trap 'rm -rf "$TMPROOT"' EXIT
   cd harness
   TMPDIR="$TMPROOT" TEMP="$TMPROOT" TMP="$TMPROOT" \
     PYTHONPATH=. ../.venv/bin/python -m unittest discover -v \
@@ -146,6 +169,7 @@ mkdir -p "$EVIDENCE/checks"
   sha256sum ./*.txt > SHA256SUMS
   sha256sum -c SHA256SUMS
 )
+)
 ```
 
 ### [ ] Task 2 — Configure Omnigent, a live provider, and the Harness
@@ -158,15 +182,18 @@ artifacts.
 Run Omnigent setup:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 uv run omnigent setup
+)
 ```
 
 Select and validate one bounded-execution provider. This writes only the
 non-secret provider/model choice to the ignored `runtime/` directory:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 mkdir -p runtime
@@ -218,6 +245,7 @@ Path("runtime/provider-selection.json").write_text(
 )
 print(json.dumps(payload, indent=2, sort_keys=True))
 PY
+)
 ```
 
 Authenticate through the provider's own supported login flow before
@@ -227,6 +255,7 @@ Create the ignored Harness configuration and perform setup without launching a
 lane:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
@@ -265,6 +294,7 @@ cp harness/examples/resource-manifest.example.json \
 
 git check-ignore harness/local-config/harness-config.json
 git check-ignore harness/local-config/resource-manifest.json
+)
 ```
 
 **Done when:** Harness setup succeeds, the provider CLI is authenticated, the
@@ -280,6 +310,7 @@ Download the exact current task, metadata, and data bytes; validate identity
 and OpenML's declared MD5; and record the SHA-256 used by all later authority:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
@@ -363,6 +394,7 @@ print("Declared license:", description["licence"])
 PY
 
 cat "$DATA_WORK/dataset.env"
+)
 ```
 
 After personally reviewing the captured metadata and data, create the formal
@@ -370,6 +402,7 @@ governance attestation. The following command refuses to write `VERIFIED`
 unless the operator types the explicit confirmation word:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 mkdir -p runtime
@@ -406,6 +439,7 @@ Path("runtime/data-governance.json").write_text(
 )
 print(json.dumps(payload, indent=2, sort_keys=True))
 PY
+)
 ```
 
 **Fallback:** with the current pinned implementation, the safe no-code
@@ -422,11 +456,13 @@ for the journal record.
 Start the research director with the required opening instruction:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
 uv run omnigent run agents/research-director -p \
   'Propose a bounded investigation of evidence-guided experiment selection. Stop and ask me to confirm the exact research objective, primary metric, dataset, risk tolerance, and consequential execution scope before treating the objective as active. Verify data/API access, license/privacy, identity, and compute feasibility. Prepare cited evidence, at least two experiment candidates, and an independent safety review. Stop again for exact-digest human approval before staging, and never launch without my explicit decision.'
+)
 ```
 
 The director must journal `research-question/v1` as a proposal and display its
@@ -435,6 +471,7 @@ objective. The command below prompts for all run-specific and human-owned
 fields, displays the complete packet, and requires explicit confirmation:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 source /tmp/ai-researcher-openml/dataset.env
@@ -536,6 +573,7 @@ uv run python scripts/record_human_authority.py \
   --human-id "$HUMAN_ID" \
   --human-session-id "$HUMAN_SESSION_ID" \
   | tee runtime/objective-confirmation.stored.json
+)
 ```
 
 **Done when:** the stored output contains the objective record digest, and that
@@ -581,6 +619,7 @@ In the director session:
 Export each real child transcript with this copy/pasteable prompt loop:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
@@ -594,6 +633,7 @@ while true; do
     --id "$SESSION_ID" \
     --output "$DEST/$SESSION_ID.jsonl"
 done
+)
 ```
 
 `parallel_status` may be `MET` only if provider-owned marker intervals strictly
@@ -641,6 +681,7 @@ for every run-specific identifier and refuses to record approval without the
 explicit confirmation word:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 mkdir -p runtime
@@ -692,6 +733,7 @@ uv run python scripts/record_human_authority.py \
   --human-id "$HUMAN_ID" \
   --human-session-id "$HUMAN_SESSION_ID" \
   | tee runtime/human-approval.stored.json
+)
 ```
 
 Then:
@@ -705,12 +747,14 @@ Then:
    process:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
 read -r -p 'Root Omnigent session ID to resume: ' ROOT_SESSION_ID
 AI_RESEARCHER_ENABLE_EXECUTION=1 \
   uv run omnigent run --resume "$ROOT_SESSION_ID" agents/research-director
+)
 ```
 
 In that resumed session, explicitly repeat the approval digest and instruct the
@@ -781,6 +825,7 @@ acceleration record. This command prompts for the real question ID and rejects
 missing or duplicate terminal records:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
@@ -822,12 +867,14 @@ for schema, filename in {
 
 print("Exported final chain and receipt:", receipt["receipt_digest"])
 PY
+)
 ```
 
 Create the rubric evidence mapping interactively. Every entered path must exist;
 the command never infers a status from an expected filename:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
@@ -882,11 +929,13 @@ uv run python scripts/render_research_report.py \
   artifacts/report-input.json \
   --rubric-output artifacts/rubric-artifact-map.json \
   | tee artifacts/terminal-report.txt
+)
 ```
 
 Copy the ignored live evidence into the external submission bundle and hash it:
 
 ```bash
+(
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
 
@@ -900,6 +949,7 @@ find "$EVIDENCE/live-run" -type f -print0 \
   | sort -z \
   | xargs -0 sha256sum \
   > "$EVIDENCE/live-run-SHA256SUMS.txt"
+)
 ```
 
 Also retain the dataset metadata, Omnigent exports, task card, Harness lane/run
@@ -917,6 +967,7 @@ assuming it.
 Create two fresh, exact-commit rehearsal checkouts:
 
 ```bash
+(
 set -euo pipefail
 
 SOURCE_URL=https://github.com/buh07/Ai-Researcher.git
@@ -940,6 +991,7 @@ for NUMBER in 1 2; do
     uv run pytest
   )
 done
+)
 ```
 
 For each checkout, repeat Tasks 2 through 11 with a new journal, Harness epoch,
