@@ -2,24 +2,50 @@ from __future__ import annotations
 
 import ast
 import runpy
+import tomllib
 from pathlib import Path
 
 import pytest
 import yaml
 
 from omnigent.spec import load
+from omnigent.runner.tool_dispatch import _granted_tool_names
 
 from ai_researcher.records import ID_FIELDS
 
 
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = ROOT / "agents" / "research-director"
+RUNTIME_CORE = BUNDLE / "tools" / "research_runtime_core.py"
+RESEARCH_RUNTIME_TOOLS = {
+    "start_parallel_branch",
+    "finish_parallel_branch",
+    "record_research_record",
+    "read_research_chain",
+    "get_learning_receipt",
+    "preflight_confirmed_objective",
+    "request_experiment_approval",
+    "stage_approved_experiment",
+    "launch_approved_experiment",
+    "get_experiment_status",
+    "get_harness_experiment_status",
+    "wait_for_experiment",
+    "review_experiment_completion",
+    "read_experiment_terminal_evidence",
+    "build_harness_result",
+    "ingest_harness_experiment_result",
+    "force_stop_experiment",
+    "read_experiment_cancellation_evidence",
+    "retire_experiment",
+    "shutdown_research_harness",
+    "record_experiment_result",
+}
 
 
 def test_omnigent_bundle_loads() -> None:
     spec = load(BUNDLE)
     assert spec.name == "research-director"
-    assert {tool.name for tool in spec.local_tools} == {"research_runtime"}
+    assert {tool.name for tool in spec.local_tools} == RESEARCH_RUNTIME_TOOLS
     local_tools = {
         agent.name: {tool.name for tool in agent.local_tools}
         for agent in spec.sub_agents
@@ -30,6 +56,11 @@ def test_omnigent_bundle_loads() -> None:
         for name, tools in local_tools.items()
         if name != "evidence-researcher"
     )
+
+
+def test_research_runtime_functions_are_in_the_live_dispatch_grant() -> None:
+    spec = load(BUNDLE)
+    assert RESEARCH_RUNTIME_TOOLS <= _granted_tool_names(spec, "codex")
 
 
 def test_all_research_agents_use_authenticated_codex_harness() -> None:
@@ -47,6 +78,24 @@ def test_all_research_agents_use_authenticated_codex_harness() -> None:
         assert agent.executor.config["harness"] == "codex"
         assert agent.executor.model == "gpt-5.6-sol"
         assert agent.executor.reasoning_effort == "high"
+
+
+@pytest.mark.parametrize("payload", ["root", "super-cache"])
+def test_codex_payload_default_cannot_override_the_agent_model(payload: str) -> None:
+    project_config = tomllib.loads(
+        (
+            ROOT
+            / "harness"
+            / "adapters"
+            / "codex"
+            / payload
+            / ".codex"
+            / "config.toml"
+        ).read_text(encoding="utf-8")
+    )
+    spec = load(BUNDLE)
+    assert project_config["model"] == spec.executor.model == "gpt-5.6-sol"
+    assert project_config["model_reasoning_effort"] == "high"
 
 
 def test_expected_specialists_are_present() -> None:
@@ -127,9 +176,7 @@ def test_bundle_roles_tools_versions_permissions_and_budgets_are_exact() -> None
 
 
 def test_director_documents_every_exposed_runtime_tool() -> None:
-    source = (BUNDLE / "tools" / "python" / "research_runtime.py").read_text(
-        encoding="utf-8"
-    )
+    source = RUNTIME_CORE.read_text(encoding="utf-8")
     tree = ast.parse(source)
     exposed = {
         node.name
@@ -148,9 +195,7 @@ def test_harness_is_integrated_through_one_adapter() -> None:
         encoding="utf-8"
     )
     assert "orchestrator_harness.operator_launch" in adapter
-    tool = (BUNDLE / "tools" / "python" / "research_runtime.py").read_text(
-        encoding="utf-8"
-    )
+    tool = RUNTIME_CORE.read_text(encoding="utf-8")
     assert "HarnessAdapter" in tool
 
 
@@ -178,7 +223,7 @@ def test_project_has_no_source_repository_wiring() -> None:
 
 
 def test_agent_tool_cannot_create_human_authority() -> None:
-    runtime = runpy.run_path(str(BUNDLE / "tools" / "python" / "research_runtime.py"))
+    runtime = runpy.run_path(str(RUNTIME_CORE))
     reject = runtime["_ensure_agent_record_allowed"]
     for schema in ("objective-confirmation/v1", "human-approval/v1"):
         with pytest.raises(ValueError, match="agents cannot create"):
@@ -191,7 +236,7 @@ def test_local_branch_events_are_single_use_dispatch_markers(
     (tmp_path / "src" / "ai_researcher").mkdir(parents=True)
     (tmp_path / "harness" / "orchestrator_harness").mkdir(parents=True)
     monkeypatch.setenv("AI_RESEARCHER_ROOT", str(tmp_path))
-    runtime = runpy.run_path(str(BUNDLE / "tools" / "python" / "research_runtime.py"))
+    runtime = runpy.run_path(str(RUNTIME_CORE))
     started = runtime["_start_branch_event"]("branch-1", "agent-1", "session-1")
     finished = runtime["_finish_branch_event"](started["invocation_token"])
     record, start_time, end_time = runtime["_consume_branch_event"](

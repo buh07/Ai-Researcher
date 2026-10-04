@@ -253,7 +253,7 @@ Authority is deliberately split:
 | Actor or boundary | Non-overlapping decision or authority | Actual current tools/interactions | Required inputs | Required output |
 |---|---|---|---|---|
 | Human scientist | Research objective, primary metric, dataset, risk tolerance, execution scope, and final consequential approval | Objective-confirmation interaction and the exact digest-bound approval/launch interactions; no direct journal or measurement mutation | Objective packet, feasibility evidence, candidate comparison, safety review, exact experiment digest | Attributable objective confirmation, approval/rejection with constraints, and explicit launch decision |
-| `research-director` | Workflow routing, gate sequence, and preservation of disagreements; **no** independent objective, experiment-selection, safety, approval, or result-interpretation authority | Five declared sub-agents plus the single `research_runtime` bundle for records/receipt, trusted branch events, preflight, approval/stage/launch, status/wait/review/evidence/ingestion, result conversion, force-stop/retire/shutdown | Human-confirmed objective/scope and exact upstream records/budgets | Ordered handoffs, persisted specialist records, exact approval question/digests, lifecycle status, and faithful presentation of the analyst's `updated-decision/v1` |
+| `research-director` | Workflow routing, gate sequence, and preservation of disagreements; **no** independent objective, experiment-selection, safety, approval, or result-interpretation authority | Five declared sub-agents plus the research-runtime surface for records/receipt, trusted branch events, preflight, approval/stage/launch, status/wait/review/evidence/ingestion, result conversion, force-stop/retire/shutdown | Human-confirmed objective/scope and exact upstream records/budgets | Ordered handoffs, persisted specialist records, exact approval question/digests, lifecycle status, and faithful presentation of the analyst's `updated-decision/v1` |
 | `evidence-researcher` | Whether each narrow external claim is supported and what source conflict/uncertainty remains | Built-in `web_search` plus narrow provider-execution start/end marker tools; no research-runtime, journal, experiment execution, or approval tool | `question_id`, `branch_id`, bounded evidence question, access constraints | `evidence-package/v1` with claim-level external citations, support, conflicts, and gaps |
 | `hypothesis-scientist` | Falsifiable hypothesis portfolio, predictions, falsifiers, and competing explanations | No configured tools; operates only on supplied records | Fixed question and supplied evidence IDs | `hypothesis-portfolio/v1` with competing explanations and uncertainty |
 | `experiment-designer` | Candidate designs, ranking, and exactly one selection recommendation under declared criteria | No configured tools; operates only on supplied records | Confirmed scope/digest, routed hypothesis, evidence, data/compute envelope | `experiment-candidates/v1` with at least two candidates, selected ID, selection rationale, and rejected-candidate rationales |
@@ -405,7 +405,8 @@ agents/research-director/
 |-- config.yaml
 |-- AGENTS.md
 |-- skills/scientific-discovery/SKILL.md
-|-- tools/python/research_runtime.py
+|-- tools/research_runtime_core.py
+|-- tools/python/*.py
 `-- agents/
     |-- evidence-researcher/
     |-- hypothesis-scientist/
@@ -533,8 +534,9 @@ different digest, never silently overwritten or presented as final.
 
 ### 5. Keep one narrow tool surface
 
-The sole director-facing tool module is
-`agents/research-director/tools/python/research_runtime.py`. It exposes:
+The sole implementation module is
+`agents/research-director/tools/research_runtime_core.py`. Grant-safe
+per-function entry modules under `tools/python/` expose:
 
 - records and receipt: `record_research_record`, `read_research_chain`, and
   `get_learning_receipt`

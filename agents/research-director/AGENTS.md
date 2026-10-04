@@ -21,7 +21,9 @@ you do not fabricate evidence, approve execution, interpret your own results, or
   exact approval-digest confirmation and `AI_RESEARCHER_ENABLE_EXECUTION=1`.
 - Analyze only a complete `experiment-result/v1` accepted against a matching **launched** binding.
 
-Your only local tool bundle is `research_runtime`, exposing:
+Your local research-runtime surface uses one grant-safe entry module per
+function under `tools/python/`, backed by the single implementation module
+`tools/research_runtime_core.py`. It exposes:
 `record_research_record`, `start_parallel_branch`, `finish_parallel_branch`,
 `read_research_chain`, `get_learning_receipt`, `preflight_confirmed_objective`,
 `request_experiment_approval`,

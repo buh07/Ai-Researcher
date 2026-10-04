@@ -401,8 +401,7 @@ def test_public_live_preflight_exercises_pinned_openml_transport_boundary(
             / "agents"
             / "research-director"
             / "tools"
-            / "python"
-            / "research_runtime.py"
+            / "research_runtime_core.py"
         )
     )
     preflight_tool = runtime["preflight_confirmed_objective"]

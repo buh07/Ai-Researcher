@@ -190,13 +190,16 @@ the same variables set for the client command.
 A suitable opening request is:
 
 ```text
-Propose a bounded investigation of evidence-guided experiment selection. Stop
-and ask me to confirm the exact research objective, primary metric, dataset,
-risk tolerance, and consequential execution scope before treating the
+Propose a bounded live investigation of evidence-guided experiment selection
+on OpenML task 59, dataset 61 version 1, using the exact downloaded dataset
+digest and URL from Task 3. Use trials_to_threshold as the primary metric and
+accuracy only as its quality guard. Do not substitute the synthetic fixture.
+Stop and ask me to confirm the exact research objective, primary metric,
+dataset, risk tolerance, and consequential execution scope before treating the
 objective as active. Verify data/API access, license/privacy, identity, and
 compute feasibility. Prepare cited evidence, at least two experiment
-candidates, and an independent safety review. Stop again for exact-digest human
-approval before staging, and never launch without my explicit decision.
+candidates, and an independent safety review. Stop again for exact-digest
+human approval before staging, and never launch without my explicit decision.
 ```
 
 The two non-substitutable human gates are:
@@ -249,7 +252,7 @@ or runtime artifacts in Git.
 
 ### Complete bounded execution lifecycle
 
-The director's `research_runtime` bundle implements the full lifecycle without
+The director's research-runtime tool surface implements the full lifecycle without
 an alternate shell path:
 
 1. `stage_approved_experiment` creates and hashes the bounded task card.
@@ -336,7 +339,8 @@ inventory. The two-minute operator script is in [`DEMO.md`](DEMO.md).
 
 ```text
 agents/research-director/           Omnigent director and five specialists
-  tools/python/research_runtime.py  narrow journal/approval/execution tools
+  tools/research_runtime_core.py    journal/approval/execution implementation
+  tools/python/*.py                 grant-safe per-function tool entry points
 src/ai_researcher/                  records, SQLite journal, adapter, reporting
 harness/                            integrated portable execution harness
 scripts/validate_bundle.py          current agent-bundle validation

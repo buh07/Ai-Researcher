@@ -465,6 +465,7 @@ session that failed provider authentication before creating a research record:
 (
 set -euo pipefail
 cd /jumbo/lisp/f004ndc/projects/Ai-Researcher
+source /tmp/ai-researcher-openml/dataset.env
 
 # Omnigent validates uploaded bundles in temporary directories. Keep the
 # client and both long-lived daemons off shared NFS temporary storage; otherwise
@@ -477,7 +478,7 @@ uv run omnigent server status
 
 uv run omnigent run --harness codex --model gpt-5.6-sol \
   agents/research-director -p \
-  'Propose a bounded investigation of evidence-guided experiment selection. Stop and ask me to confirm the exact research objective, primary metric, dataset, risk tolerance, and consequential execution scope before treating the objective as active. Verify data/API access, license/privacy, identity, and compute feasibility. Prepare cited evidence, at least two experiment candidates, and an independent safety review. Stop again for exact-digest human approval before staging, and never launch without my explicit decision.'
+  "Propose a bounded live investigation of evidence-guided experiment selection on OpenML task 59, dataset 61 version 1, using the exact downloaded dataset SHA-256 $OPENML_DATASET_SHA256 from $OPENML_DATASET_URL. Use trials_to_threshold as the primary metric and accuracy only as its quality guard. Do not substitute the synthetic fixture. Stop and ask me to confirm the exact research objective, primary metric, dataset, risk tolerance, and consequential execution scope before treating the objective as active. Verify data/API access, license/privacy, identity, and compute feasibility. Prepare cited evidence, at least two experiment candidates, and an independent safety review. Stop again for exact-digest human approval before staging, and never launch without my explicit decision."
 )
 ```
 

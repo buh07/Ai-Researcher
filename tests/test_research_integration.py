@@ -1384,7 +1384,7 @@ def test_complete_hermetic_workflow_reopens_with_identical_final_receipt(
     )
     monkeypatch.setattr(experiment, "_load_dataset", lambda **kwargs: fixture_data)
     runtime = runpy.run_path(
-        str(ROOT / "agents" / "research-director" / "tools" / "python" / "research_runtime.py")
+        str(ROOT / "agents" / "research-director" / "tools" / "research_runtime_core.py")
     )
     preflight_tool = runtime["preflight_confirmed_objective"]
     preflight_tool.__globals__["_adapter"] = lambda: adapter
